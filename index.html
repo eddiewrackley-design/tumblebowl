@@ -29101,9 +29101,9 @@ document.addEventListener('click', (e) => {
    ============================================================ */
 /* =============================================================================================
    SUPABASE — the account + save service for the web version of Tumble Bowl.
-   The publishable key below is meant to be public: what it can do is limited by the database's
-   row-level security rules (see supabase-setup.sql): anyone can see usernames, and each player can
-   only read and write their own saves.
+   The publishable key below is meant to be public: it can only call the tb_* database functions
+   (see supabase-setup.sql). Accounts are username + password (bcrypt-hashed in the database, no email);
+   logging in gives this browser a session token, and every save read/write checks that token.
    ============================================================================================= */
 const SB = {
   URL: 'https://ceibznrlsjvuqpsfsssy.supabase.co',
@@ -29113,13 +29113,24 @@ const SB = {
     if (this.c) return this.c;
     try {
       if (typeof window !== 'undefined' && window.supabase && window.supabase.createClient)
-        this.c = window.supabase.createClient(this.URL, this.KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'tb_auth' } });
+        this.c = window.supabase.createClient(this.URL, this.KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
     } catch (e) { this.c = null; }
     return this.c;
   },
-  async user() {
-    const c = this.client(); if (!c) return null;
-    try { const { data } = await c.auth.getSession(); return data && data.session ? data.session.user : null; } catch (e) { return null; }
+  TKEY: 'tb_token',
+  token() { try { return localStorage.getItem(this.TKEY) || null; } catch (e) { return null; } },
+  setToken(t) { try { if (t) localStorage.setItem(this.TKEY, t); else localStorage.removeItem(this.TKEY); } catch (e) { } },
+  async rpc(fn, args) {
+    const { data, error } = await this.client().rpc(fn, args);
+    if (error) throw error;
+    return data;
+  },
+  /* who is logged in on this browser: { uid, name } or null (throws if the service can't be reached) */
+  async me() {
+    const tok = this.token(); if (!tok || !this.client()) return null;
+    const r = await this.rpc('tb_whoami', { p_token: tok });
+    if (!r || !r.ok) { this.setToken(null); return null; }
+    return { uid: r.username.toLowerCase(), name: r.username };
   },
   timeout(p, ms) { return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]); },
 };
@@ -29134,7 +29145,6 @@ const CloudSave = {
   stampKey(k) { return 'hcstamp|' + k; },
   stamp(k) { try { return +(localStorage.getItem(this.stampKey(k)) || 0); } catch (e) { return +(store.mem[this.stampKey(k)] || 0); } },
   setStamp(k, t) { store.mem[this.stampKey(k)] = String(t); try { localStorage.setItem(this.stampKey(k), String(t)); } catch (e) { } },
-  table() { return SB.client().from('saves'); },
 
   /* at boot (if you're still logged in) and again right after logging in */
   init() {
@@ -29143,8 +29153,10 @@ const CloudSave = {
   },
   async _init() {
     if (!SB.client()) return this.badge('off');
-    const u = await SB.user(); if (!u) return this.badge('off');
-    const uid = u.id;
+    let u = null; try { u = await SB.me(); } catch (e) { return this.badge('err'); }
+    if (!u) return this.badge('off');
+    const uid = u.uid;
+    this.tok = SB.token();
     this.on = true; this.ready = false; this.uid = uid; this.localNewer = new Set(); this.badge('sync');
     try {
       let owner = null; try { owner = localStorage.getItem(this.OWNER); } catch (e) { }
@@ -29167,7 +29179,7 @@ const CloudSave = {
     const wasOk = this.on && this.ready;
     if (wasOk) { this.flush(); try { await SB.timeout(Promise.all([...this.busy.values()]), 10000); } catch (e) { } }
     const clean = wasOk && this.status === 'ok' && !this.pending.size && !this.busy.size;
-    this.on = false; this.ready = false; this.uid = null; this.initP = null;
+    this.on = false; this.ready = false; this.uid = null; this.tok = null; this.initP = null;
     if (clean) { this.wipeLocal(); try { localStorage.removeItem(this.OWNER); } catch (e) { } }
     this.badge('off');
   },
@@ -29185,8 +29197,7 @@ const CloudSave = {
   },
   /* bring down every save whose cloud copy is newer than ours (or that we don't have at all) */
   async pull() {
-    const { data, error } = await this.table().select('key,t,deleted,gz,data').eq('user_id', this.uid);
-    if (error) throw error;
+    const data = await SB.rpc('tb_saves_pull', { p_token: this.tok });
     let n = 0;
     for (const m of data || []) {
       if (!m || !m.key || !this.synced(m.key)) continue;
@@ -29213,12 +29224,11 @@ const CloudSave = {
   },
   removed(k) {
     if (!this.on || !this.synced(k)) return;
-    const t = Date.now(), uid = this.uid; this.setStamp(k, t);
+    const t = Date.now(), tok = this.tok; this.setStamp(k, t);
     if (!this.ready) return;
     clearTimeout(this.pending.get(k)); this.pending.delete(k);
     this.queue(k, async () => {
-      const { error } = await this.table().upsert({ user_id: uid, key: k, data: null, gz: false, t, deleted: true, updated_at: new Date().toISOString() }, { onConflict: 'user_id,key' });
-      if (error) throw error;
+      await SB.rpc('tb_save_put', { p_token: tok, p_key: k, p_data: null, p_gz: false, p_t: t, p_deleted: true });
     });
   },
   flush() { for (const [k, tm] of this.pending) { clearTimeout(tm); this.push(k); } this.pending.clear(); },
@@ -29229,12 +29239,11 @@ const CloudSave = {
     this.busy.set(k, next); return next;
   },
   push(k) {
-    const text = store.raw(k), t = this.stamp(k) || Date.now(), uid = this.uid;
-    if (text == null || !uid) return;
+    const text = store.raw(k), t = this.stamp(k) || Date.now(), tok = this.tok;
+    if (text == null || !tok || !this.on) return;
     return this.queue(k, async () => {
       const gz = await this.gzip(text);
-      const { error } = await this.table().upsert({ user_id: uid, key: k, data: gz != null ? gz : text, gz: gz != null, t, deleted: false, updated_at: new Date().toISOString() }, { onConflict: 'user_id,key' });
-      if (error) throw error;
+      await SB.rpc('tb_save_put', { p_token: tok, p_key: k, p_data: gz != null ? gz : text, p_gz: gz != null, p_t: t, p_deleted: false });
     });
   },
   /* gzip + base64 where the browser can; plain text where it can't */
@@ -29301,18 +29310,18 @@ const CloudSave = {
 };
 
 /* =============================================================================================
-   TUMBLE BOWL ACCOUNTS — the Welcome screen, sign-up and log-in (Supabase Auth).
-   · Sign up: username + email + password. Supabase Auth stores the password (hashed with bcrypt);
-     the game never stores it. A database trigger creates the player's profile (their username) in the
-     same step, and usernames are unique ignoring capitals, so two players can't take the same name.
-   · Log in: email + password, from any device. Supabase keeps you logged in on this device.
-   · Saves: your progress syncs to your own row-level-secured rows in the `saves` table (CloudSave).
-   · If the account service can't load (no connection, blocked script), you can still play offline:
-     progress saves on this device.
+   TUMBLE BOWL ACCOUNTS — the Welcome screen, sign-up and log-in. Username + password, no email.
+   · Sign up / log in call database functions (tb_register / tb_login). The password is checked and stored
+     as a bcrypt hash inside the database; the game never stores it. Usernames are unique ignoring capitals.
+   · A successful sign-up or log-in returns a session token that stays in this browser ("stay logged in").
+   · 5 wrong passwords in a row lock that username for a minute.
+   · There's no email, so a forgotten password can't be reset by the player (the game owner can delete
+     the account in Supabase so the name can be registered again).
+   · If the account service can't be reached, you can still play offline: progress saves on this device.
    ============================================================================================= */
 const Account = {
-  session: null, el: null, mode: 'create', fails: 0, lockUntil: 0,
-  LAST: 'tb_last_email',
+  session: null, el: null, mode: 'create',
+  LAST: 'tb_last_user',
   services() { return !!SB.client(); },
   clean(n) { return String(n || '').trim(); },
   key(n) { return this.clean(n).toLowerCase(); },
@@ -29324,12 +29333,6 @@ const Account = {
     if (/^[._-]|[._-]$/.test(n)) return 'Start and end your username with a letter or number.';
     return null;
   },
-  checkEmail(e) {
-    e = this.clean(e);
-    if (!e) return 'Please enter your email.';
-    if (e.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return 'Please enter a valid email address.';
-    return null;
-  },
   checkPass(p, p2) {
     if (!p) return 'Please enter a password.';
     if (p.length < 8) return 'Password must be at least 8 characters.';
@@ -29337,33 +29340,21 @@ const Account = {
     if (p2 != null && p !== p2) return 'Passwords do not match.';
     return null;
   },
-  lastEmail() { try { return localStorage.getItem(this.LAST) || ''; } catch (e) { return ''; } },
-  saveLast(e) { try { localStorage.setItem(this.LAST, e); } catch (x) { } },
-  async profile(uid) {
-    const { data, error } = await SB.client().from('profiles').select('username,username_lower').eq('id', uid).maybeSingle();
-    if (error) throw error;
-    return data;
-  },
-  async taken(lower) {
-    const { data, error } = await SB.client().from('profiles').select('id').eq('username_lower', lower).maybeSingle();
-    if (error) throw error;
-    return !!data;
-  },
+  lastUser() { try { return localStorage.getItem(this.LAST) || ''; } catch (e) { return ''; } },
+  saveLast(n) { try { localStorage.setItem(this.LAST, n); } catch (x) { } },
 
   /* the gate after the splash: straight in if you're logged in, else the Welcome screen */
   async gate(next) {
     this.next = next;
     this.show('loading');
     if (!this.services()) { this.show('offline'); return; }
-    let u = null; try { u = await SB.user(); } catch (e) { }
-    if (u) {
-      try {
-        const p = await SB.timeout(this.profile(u.id), 12000);
-        if (p) { this.session = { uid: u.id, name: p.username, lower: p.username_lower }; CloudSave.init(); return this.enter(false); }
-        try { await SB.client().auth.signOut(); } catch (e) { }   // a login with no player profile: start fresh
-      } catch (e) { this.show('error', 'We couldn\'t reach the account service. Check your connection and try again.'); return; }
+    if (SB.token()) {
+      let u = null;
+      try { u = await SB.timeout(SB.me(), 12000); }
+      catch (e) { this.show('error', 'We couldn\'t reach the account service. Check your connection and try again.'); return; }
+      if (u) { this.session = { uid: u.uid, name: u.name, lower: u.uid }; CloudSave.init(); return this.enter(false); }
     }
-    this.show(this.lastEmail() ? 'login' : 'create');
+    this.show(this.lastUser() ? 'login' : 'create');
   },
   enter(welcome) {
     if (this.el) { this.el.classList.add('out'); const e = this.el; setTimeout(() => e.remove(), 450); this.el = null; }
@@ -29376,7 +29367,8 @@ const Account = {
     this.session = null;
     this.next = () => UI.title(); this.show('loading');
     await CloudSave.stop();
-    try { await SB.client().auth.signOut(); } catch (e) { }
+    const tok = SB.token(); SB.setToken(null);
+    try { if (tok) await SB.timeout(SB.rpc('tb_logout', { p_token: tok }), 5000); } catch (e) { }
     this.gate(() => UI.title());
   },
   chip() {
@@ -29409,14 +29401,14 @@ const Account = {
     else if (mode === 'error') body = `${this.logo()}<div class="tb-msg bad">${esc(msg)}</div><button class="tb-go" id="tbRetry">Try again</button><button class="tb-link" id="tbOff">Play offline instead</button>`;
     else if (mode === 'create') body = `${this.logo()}<h1>Welcome to Tumble Bowl</h1><p class="tb-intro">Welcome to Tumble Bowl! Experience exciting physics football gameplay, massive plays, competitive game modes, incredible celebrations, and more. Create your account and start your journey!</p>
       <form id="tbForm" novalidate><label for="tbUser">Username</label><input id="tbUser" autocomplete="username" maxlength="16" placeholder="3–16 letters or numbers" spellcheck="false"><div class="tb-hint" id="tbUserMsg" aria-live="polite"></div>
-      <label for="tbEmail">Email</label><input id="tbEmail" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" spellcheck="false"><div class="tb-hint">You'll log in with this. Other players never see it.</div>
       <label for="tbPass">Password</label>${pw('tbPass', 'At least 8 characters', 'new-password')}
       <label for="tbPass2">Confirm password</label>${pw('tbPass2', 'Type it again', 'new-password')}
+      <div class="tb-hint">Remember your password: there's no email, so it can't be reset.</div>
       <div class="tb-msg" id="tbMsg" aria-live="assertive"></div><button class="tb-go" type="submit" id="tbSubmit">Create account</button></form>
       <p class="tb-alt">Already have an account? <button class="tb-link hl" id="tbToLogin">LOG IN</button></p>
       <button class="tb-link" id="tbOff">Play offline without an account</button>`;
-    else if (mode === 'login') body = `${this.logo()}<h1>Log in</h1><p class="tb-intro">Log in with the email and password you signed up with. Your saves come with you on any device.</p>
-      <form id="tbForm" novalidate><label for="tbEmail">Email</label><input id="tbEmail" type="email" autocomplete="email" maxlength="254" spellcheck="false" value="${esc(this.lastEmail())}">
+    else if (mode === 'login') body = `${this.logo()}<h1>Log in</h1><p class="tb-intro">Enter your username and password. Your saves come with you on any device.</p>
+      <form id="tbForm" novalidate><label for="tbUser">Username</label><input id="tbUser" autocomplete="username" maxlength="16" spellcheck="false" value="${esc(this.lastUser())}">
       <label for="tbPass">Password</label>${pw('tbPass', 'Your password', 'current-password')}
       <div class="tb-msg" id="tbMsg" aria-live="assertive"></div><button class="tb-go" type="submit" id="tbSubmit">Log in</button></form>
       <p class="tb-alt">New to Tumble Bowl? <button class="tb-link hl" id="tbToCreate">CREATE ACCOUNT</button></p>
@@ -29436,14 +29428,13 @@ const Account = {
     if (f) f.onsubmit = (e) => { e.preventDefault(); this.mode === 'create' ? this.create() : this.login(); };
     const u = $('tbUser');
     if (u && this.mode === 'create') u.oninput = () => { clearTimeout(this.chkT); const m = $('tbUserMsg'); const bad = this.checkName(u.value); if (bad && this.clean(u.value)) { m.textContent = bad; m.className = 'tb-hint bad'; return; } m.textContent = this.clean(u.value) ? 'Checking…' : ''; m.className = 'tb-hint'; this.chkT = setTimeout(() => this.avail(u.value), 420); };
-    const first = this.mode === 'create' ? u : ($('tbEmail') && $('tbEmail').value ? $('tbPass') : $('tbEmail'));
-    if (first) setTimeout(() => first.focus(), 60);
+    if (u) setTimeout(() => (this.mode === 'login' && u.value ? $('tbPass') : u).focus(), 60);
   },
   async avail(n) {
     const m = $('tbUserMsg'); if (!m || this.mode !== 'create') return;
     const lower = this.key(n); if (this.checkName(n)) return;
     try {
-      const t = await this.taken(lower);
+      const t = await SB.rpc('tb_name_taken', { p_username: lower });
       if (!$('tbUser') || this.key($('tbUser').value) !== lower) return;   // they've kept typing
       if (t) { m.textContent = 'Username already taken. Please choose another.'; m.className = 'tb-hint bad'; }
       else { m.textContent = 'Username is available!'; m.className = 'tb-hint good'; }
@@ -29451,34 +29442,22 @@ const Account = {
   },
   busy(on, label) { const b = $('tbSubmit'); if (b) { b.disabled = on; if (label) b.textContent = label; } },
   msg(t, kind) { const m = $('tbMsg'); if (m) { m.textContent = t; m.className = 'tb-msg ' + (kind || 'bad'); } },
-  nameTaken() { const m = $('tbUserMsg'); if (m) { m.textContent = 'Username already taken. Please choose another.'; m.className = 'tb-hint bad'; } },
   async create() {
-    const name = this.clean($('tbUser').value), email = this.clean($('tbEmail').value).toLowerCase(), p = $('tbPass').value, p2 = $('tbPass2').value;
-    const e1 = this.checkName(name) || this.checkEmail(email) || this.checkPass(p, p2); if (e1) return this.msg(e1);
-    const lower = this.key(name);
+    const name = this.clean($('tbUser').value), p = $('tbPass').value, p2 = $('tbPass2').value;
+    const e1 = this.checkName(name) || this.checkPass(p, p2); if (e1) return this.msg(e1);
     const fail = (t) => { this.busy(false, 'Create account'); this.msg(t); };
     this.busy(true, 'Creating account…'); this.msg('', 'info');
     try {
-      if (await this.taken(lower)) { this.nameTaken(); return fail('Username already taken. Please choose another.'); }
-      const { data, error } = await SB.client().auth.signUp({ email, password: p, options: { data: { username: name } } });
-      if (error) {
-        const m = String(error.message || '').toLowerCase(), code = String(error.code || '');
-        if (code === 'user_already_exists' || code === 'email_exists' || m.includes('already registered')) return fail('An account with this email already exists. Log in instead.');
-        if (code === 'email_address_invalid' || (m.includes('email') && m.includes('invalid'))) return fail('That email address wasn\'t accepted. Please use a different one.');
-        if (code === 'weak_password') return fail(error.message || 'Please choose a stronger password.');
-        if (error.status === 429 || code.includes('rate_limit')) return fail('Too many sign-ups right now. Please wait a few minutes and try again.');
-        if (m.includes('database error')) { this.nameTaken(); return fail('Username already taken. Please choose another.'); }   // the unique-username rule caught a race
-        return fail('We couldn\'t create your account: ' + (error.message || 'unknown error') + '.');
+      const r = await SB.timeout(SB.rpc('tb_register', { p_username: name, p_password: p }), 15000);
+      if (!r || !r.ok) {
+        const err = r && r.error;
+        if (err === 'taken') { const m = $('tbUserMsg'); if (m) { m.textContent = 'Username already taken. Please choose another.'; m.className = 'tb-hint bad'; } return fail('Username already taken. Please choose another.'); }
+        if (err === 'bad_username') return fail('That username isn\'t allowed. Use 3–16 letters, numbers, _ . or -.');
+        if (err === 'bad_password') return fail('Password must be 8–72 characters.');
+        return fail('We couldn\'t create your account. Please try again.');
       }
-      this.saveLast(email);
-      if (!data || !data.session) {   // email confirmation is turned on in Supabase
-        this.busy(false, 'Create account');
-        $('tbPass').value = ''; $('tbPass2').value = '';
-        return this.msg('Account created! Check your email to confirm it, then log in.', 'good');
-      }
-      const prof = await this.profile(data.user.id);
-      if (!prof) throw new Error('no profile');
-      this.session = { uid: data.user.id, name: prof.username, lower: prof.username_lower };
+      SB.setToken(r.token); this.saveLast(r.username);
+      this.session = { uid: r.username.toLowerCase(), name: r.username, lower: r.username.toLowerCase() };
       this.msg('Account created successfully!', 'good');
       $('tbPass').value = ''; $('tbPass2').value = '';
       try { await SB.timeout(CloudSave.init(), 8000); } catch (e) { }
@@ -29488,28 +29467,19 @@ const Account = {
     }
   },
   async login() {
-    if (Date.now() < this.lockUntil) return this.msg(`Too many tries. Wait ${Math.ceil((this.lockUntil - Date.now()) / 1000)} seconds and try again.`);
-    const email = this.clean($('tbEmail').value).toLowerCase(), p = $('tbPass').value;
-    if (!email) return this.msg('Please enter your email.');
+    const name = this.clean($('tbUser').value), p = $('tbPass').value;
+    if (!name) return this.msg('Please enter your username.');
     if (!p) return this.msg('Please enter your password.');
     this.busy(true, 'Logging in…'); this.msg('', 'info');
     try {
-      const { data, error } = await SB.client().auth.signInWithPassword({ email, password: p });
-      if (error) {
-        this.busy(false, 'Log in');
-        if (error.code === 'email_not_confirmed' || /not confirmed/i.test(error.message || '')) return this.msg('Please confirm your email first (check your inbox), then log in.');
-        if (error.status === 429) return this.msg('Too many tries. Please wait a minute and try again.');
-        if (error.status === 400 || error.code === 'invalid_credentials') {
-          this.fails++; if (this.fails >= 5) { this.lockUntil = Date.now() + 30000; this.fails = 0; }
-          $('tbPass').value = '';
-          return this.msg('Incorrect email or password. Please try again.');
-        }
-        return this.msg('We couldn\'t reach the account service. Check your connection and try again.');
+      const r = await SB.timeout(SB.rpc('tb_login', { p_username: name, p_password: p }), 15000);
+      if (!r || !r.ok) {
+        this.busy(false, 'Log in'); $('tbPass').value = '';
+        if (r && r.error === 'locked') return this.msg(`Too many wrong passwords. Wait ${r.wait || 60} seconds and try again.`);
+        return this.msg('Incorrect username or password. Please try again.');
       }
-      this.fails = 0; this.saveLast(email);
-      const prof = await this.profile(data.user.id);
-      const nm = prof ? prof.username : email.split('@')[0];
-      this.session = { uid: data.user.id, name: nm, lower: nm.toLowerCase() };
+      SB.setToken(r.token); this.saveLast(r.username);
+      this.session = { uid: r.username.toLowerCase(), name: r.username, lower: r.username.toLowerCase() };
       $('tbPass').value = '';
       this.msg('Logged in. Loading your saves…', 'good');
       try { await SB.timeout(CloudSave.init(), 15000); } catch (e) { }
@@ -29521,7 +29491,26 @@ const Account = {
   },
 };
 
-const PARK_FIELDS = {
+/* =============================================================================================
+   ROAD TO THE LEAGUE · ONLINE PARK (CPU PREVIEW MODE)
+   The Online Park is the planned social hub of Road to the League: a football park with pickup fields,
+   a training center, quest givers and a commons, where players meet, practice and queue for 1v1, 2v2
+   and 5v5 games. Online servers don't exist yet, so this is the CPU preview: the whole Park works, and
+   every other character in it is a CPU (labelled as one). Nothing here talks to a network, and nothing
+   pretends a CPU is a person: no player counts, no fake friends, no rankings.
+
+   Layout of the code:
+   · PARK_*      — the place: areas, points of interest, CPU crews, quest and reward tables
+   · ParkMM      — matchmaking. A lobby is two sides of PARTICIPANTS, each { kind: 'human' | 'cpu', ... }.
+                   fill() tops a lobby up with CPU participants; online play replaces fill() with a server
+                   call that returns the same lobby shape (and can swap a CPU slot for a human who joins).
+                   The match setup never asks what kind a participant is, except to lock the controller.
+   · ParkProg    — quests, XP, levels and capped attribute rewards, saved in Road.data.park
+   · Park        — the scene (free roam, CPU characters, field games, training challenges) and its UI
+   · Gfx.parkGrounds — the geometry, built through the venue system so park matches are played here too
+   ============================================================================================= */
+
+/* ---------------- the place ---------------- */const PARK_FIELDS = {
   1: { n: 1, name: '1v1 Field', x: -36, z: -76, L: 40, W: 22 },
   2: { n: 2, name: '2v2 Field', x: 36, z: -76, L: 40, W: 22 },
   5: { n: 5, name: 'Main Field', x: 0, z: 0, main: true },
