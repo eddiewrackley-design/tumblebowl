@@ -2055,7 +2055,7 @@ class Player {
     if (this.fooledT > 0) this.fooledT -= dt;
     if (this.act) { this.act.t += dt; if (this.act.t >= this.act.dur) { const done = this.act; this.act = null; if (done.type === 'trip') this.endTrip(done.data); } }
     this.fx.sitBack = 0; this.fx.leanS = 0; this.fx.leanF = 0; this.fx.crouch = 0; this.fx.twist = 0; this.fx.cadence = 1; this.fx.amp = 1; this.fx.arms = null; this.fx.plant = null; this.fx.highStep = 0;
-    this.fx.hop = 0; this.fx.knee = null; this.fx.nod = 0; this.fx.look = 0; this.handPose = null;
+    this.fx.hop = 0; this.fx.wide = 0; this.fx.knee = null; this.fx.nod = 0; this.fx.look = 0; this.handPose = null;
     if (this.act && this.act.type === 'celeb' && typeof CelebAnim !== 'undefined') CelebAnim.body(this, this.act);
     this.fx.jbLeg = null;
     if (this.jbA && typeof JBAnim !== 'undefined') JBAnim.body(this, dt);
@@ -2071,12 +2071,12 @@ class Player {
     if (this.y > 0 || this.vy > 0) {
       this.vy -= G * dt; this.y += this.vy * dt;
       this.pos.addScaledVector(this.vel, dt);
-      if (this.is('hurdle')) { this.fx.arms = 'out'; this.fx.leanF = 0.3; }
+      if (this.is('hurdle')) { this.fx.arms = 'out'; const k = this.act.t / this.act.dur; this.fx.leanF = 0.32 + 0.22 * Math.sin(Math.min(1, k) * Math.PI); }   // attacking the hurdle: chest out over the lead leg
       if (this.y <= 0) {
         const hurdled = this.is('hurdle');
         this.y = 0; this.vy = 0;
         // landing: a hurdle costs a little speed and balance, more for less agile players
-        if (hurdled) { this.balance -= 0.06 + 0.1 * (1 - this.agility); this.vel.multiplyScalar(0.93); this.act = null; Bus.emit('land', { p: this }); }
+        if (hurdled) { const ap = (this.act && this.act.data && this.act.data.apex) || 0.7; this.balance -= 0.04 + 0.1 * (1 - this.agility) + 0.08 * Math.max(0, ap - 0.7); this.vel.multiplyScalar(ap > 1 ? 0.88 : 0.93); this.act = null; if (ap > 1 && this.balance < 0.45) this.startAct('stumble', 0.3); Bus.emit('land', { p: this }); }
         else this.balance -= 0.12;
       }
       this.turn(dt);
@@ -2261,7 +2261,7 @@ class Player {
     const mv = { kind, side, t: 0, f, lat, sp0: Math.max(sp, 2), plantPos: null, foolAt: 0.12, fooled: false, chained: !!chained };
     let bal = 0, sta = 0.04;
     switch (kind) {
-      case 'juke': mv.plantT = 0.15 - 0.05 * (A - 0.8); mv.dur = mv.plantT + 0.3; mv.latV = (3.2 + 2.6 * A) * k; mv.keep = 0.58; bal = (0.08 + 0.1 * sp / this.vmax) / A; mv.foolAt = mv.plantT; break;
+      case 'juke': mv.plantT = 0.19 - 0.05 * (A - 0.8); mv.dur = mv.plantT + 0.3; mv.latV = (3.2 + 2.6 * A) * k; mv.keep = 0.58; bal = (0.08 + 0.1 * sp / this.vmax) / A; mv.foolAt = mv.plantT; break;
       case 'juke2': mv.fakeT = chained ? 0 : 0.2; mv.plantT = mv.fakeT + 0.1; mv.dur = mv.plantT + 0.32; mv.latV = (3.6 + 2.8 * A) * k; mv.keep = 0.55; bal = (0.12 + 0.12 * sp / this.vmax) / A; sta = 0.12; mv.foolAt = mv.plantT; break;
       case 'speedcut': mv.dur = 0.32; mv.ang = 0.45 + 0.3 * A; mv.keep = (0.84 + 0.08 * A) * k; bal = 0.06 / A; mv.foolAt = 0.08; break;
       case 'sidestep': mv.dur = 0.34; mv.latV = (2.1 + 1.5 * A) * k; mv.keep = 0.9; bal = 0.05 / A; mv.foolAt = 0.1; break;
@@ -2285,16 +2285,21 @@ class Player {
     };
     switch (mv.kind) {
       case 'juke': {
-        if (t < mv.plantT) { plantAt(mv.side); fx.leanF = -0.22; fx.crouch = 0.4; fx.leanS = mv.side * 0.12; fx.arms = 'out'; out.copy(mv.f).multiplyScalar(mv.sp0 * 0.5); return [2.8, 1]; }
+        // the jump cut: he sinks his hips way down on a wide base, the plant leg reaching out wide, shoulders
+        // square and loaded the other way, ball tucked high...
+        if (t < mv.plantT) { const g = t / mv.plantT; plantAt(mv.side); fx.leanF = 0.04 - 0.1 * g; fx.crouch = 0.4 + 0.2 * g; fx.wide = 0.06 + 0.14 * g; fx.leanS = -mv.side * 0.14 * g; fx.twist = -mv.side * 0.12 * g; fx.arms = 'out'; out.copy(mv.f).multiplyScalar(mv.sp0 * 0.5); return [2.8, 1]; }
+        // ...then explodes off it sideways, both feet leaving the turf in a low hop, and lands running the new way
         const k = (t - mv.plantT) / (mv.dur - mv.plantT);
-        fx.leanS = mv.side * 0.36 * (1 - k * 0.6); fx.leanF = 0.12; fx.crouch = 0.32 * (1 - k); fx.twist = mv.side * 0.3 * (1 - k); fx.arms = 'out';
+        fx.hop = 0.1 * this.H * Math.sin(Math.min(1, k / 0.6) * Math.PI) * (k < 0.6 ? 1 : 0);
+        fx.wide = 0.2 * (1 - k); fx.leanS = mv.side * 0.4 * (1 - k * 0.65); fx.leanF = 0.1 + 0.08 * k; fx.crouch = 0.5 * (1 - k) + 0.08; fx.twist = mv.side * 0.32 * (1 - k); fx.arms = 'out';
         out.copy(mv.f).multiplyScalar(mv.sp0 * mv.keep).addScaledVector(mv.lat, mv.latV); return [2.5, 1.3];
       }
       case 'juke2': {
         if (t < mv.fakeT) { const k = t / mv.fakeT; fx.leanS = -mv.side * 0.32 * Math.sin(k * Math.PI); fx.twist = -mv.side * 0.35 * Math.sin(k * Math.PI); fx.crouch = 0.2; fx.arms = 'out'; out.copy(mv.f).multiplyScalar(mv.sp0 * 0.62).addScaledVector(mv.lat, -1.5); return [2.2, 1]; }
-        if (t < mv.plantT) { plantAt(mv.side); fx.leanF = -0.2; fx.crouch = 0.42; fx.arms = 'out'; out.copy(mv.f).multiplyScalar(mv.sp0 * 0.45); return [3, 1]; }
+        if (t < mv.plantT) { plantAt(mv.side); fx.leanF = -0.1; fx.crouch = 0.58; fx.wide = 0.2; fx.leanS = -mv.side * 0.12; fx.arms = 'out'; out.copy(mv.f).multiplyScalar(mv.sp0 * 0.45); return [3, 1]; }
         const k = (t - mv.plantT) / (mv.dur - mv.plantT);
-        fx.leanS = mv.side * 0.4 * (1 - k * 0.6); fx.leanF = 0.15; fx.crouch = 0.3 * (1 - k); fx.twist = mv.side * 0.35 * (1 - k); fx.arms = 'out';
+        fx.hop = 0.1 * this.H * Math.sin(Math.min(1, k / 0.6) * Math.PI) * (k < 0.6 ? 1 : 0);
+        fx.wide = 0.2 * (1 - k); fx.leanS = mv.side * 0.42 * (1 - k * 0.6); fx.leanF = 0.15; fx.crouch = 0.5 * (1 - k) + 0.06; fx.twist = mv.side * 0.35 * (1 - k); fx.arms = 'out';
         out.copy(mv.f).multiplyScalar(mv.sp0 * mv.keep).addScaledVector(mv.lat, mv.latV); return [2.8, 1.35];
       }
       case 'speedcut': {
@@ -2336,17 +2341,21 @@ class Player {
     Bus.emit('broken', { p: this });
   }
   /* hurdle: leap forward over a body on the ground, keeping most of the run's speed */
-  hurdle() {
+  /* the hurdle: a real leap over a man. `apex` is how high the body goes (0.75 m clears a defender going low or a
+     body on the turf; about 1.15 m clears a man standing up). A higher hurdle costs more speed and balance on
+     the way down. */
+  hurdle(opts = {}) {
     if (this.state !== 'up' || this.y > 0 || this.battle || this.td || this.cool.hurdle > 0 || this.grabbedBy.length) return false;
     this.cool.hurdle = 1.1;
-    this.mv = null;
+    this.mv = null; this.hurdleArm = null;
     const f = this.speed > 1 ? _p.f.set(this.vel.x, 0, this.vel.z).normalize() : this.fwd(_p.f);
-    if (this.speed < 3) this.vel.addScaledVector(f, 3 - this.speed);  // a standing hurdle still needs a push
+    if (this.speed < 3.5) this.vel.addScaledVector(f, 3.5 - this.speed);  // a standing hurdle still needs a push
     this.vel.multiplyScalar(0.97);
-    this.vy = 2.35 + 0.45 * this.agility; this.y = 0.001;
-    this.startAct('hurdle', 2 * this.vy / G + 0.05, {});
-    this.stamina = Math.max(0.3, this.stamina - 0.05);
-    Bus.emit('hurdle', { p: this });
+    const apex = opts.apex || (0.62 + 0.14 * this.agility);
+    this.vy = Math.sqrt(2 * G * apex); this.y = 0.001;
+    this.startAct('hurdle', 2 * this.vy / G + 0.05, { apex, over: opts.over || null });
+    this.stamina = Math.max(0.3, this.stamina - 0.04 - 0.04 * apex);
+    Bus.emit('hurdle', { p: this, over: opts.over || null });
     return true;
   }
   jump(power = 1) {
@@ -2360,8 +2369,19 @@ class Player {
   endTrip(d) {
     if (this.state !== 'up') return;
     if (d && d.save) { this.balance = Math.max(0.3, this.balance); Bus.emit('broken', { p: this, by: d.by, kind: 'ankle' }); return; }
+    const sp = Math.hypot(this.vel.x, this.vel.z), fw = sp > 0.5 ? new V3(this.vel.x / sp, 0, this.vel.z / sp) : this.fwd(new V3());
     this.fall(_p.t.copy(this.vel).multiplyScalar(0.95).add(new V3(0, 0.2, 0)), -0.9, 'trip', rand(-0.6, 0.6));
-    if (d && d.by) { d.by.stats.tkl++; Bus.emit('tackle', { by: d.by, c: this, kind: 'ankle', style: 'ankle', dv: 2 }); }
+    // his feet are stopped and his body keeps going: the whole body rotates forward about the hips (head down and
+    // ahead, heels coming up behind). Run in hard and clipped clean, he goes all the way over: a flip.
+    const flip = !!(d && d.flip), W = flip ? rand(7.5, 10) : clamp(1.8 + 0.42 * sp, 2, 5.2), pop = flip ? rand(2.4, 3.4) : 0.4;
+    const pel = this.joints[J.PEL];
+    for (let i = 0; i < NJ; i++) {
+      const jt = this.joints[i], dy = jt.y - pel.y, df = (jt.x - pel.x) * fw.x + (jt.z - pel.z) * fw.z;
+      // upper body: on forward and down; legs: heels whipped up and back (the clipped feet catch, so they go up more than back)
+      const hk = dy > 0 ? 1 : 0.45, vx = W * dy * hk * fw.x, vz = W * dy * hk * fw.z, vy = -W * df + pop + (dy < 0 ? -dy * W * 0.95 : -dy * W * 0.3);
+      this.prev[i].x -= vx * DT; this.prev[i].y -= vy * DT; this.prev[i].z -= vz * DT;
+    }
+    if (d && d.by) { d.by.stats.tkl++; Bus.emit('tackle', { by: d.by, c: this, kind: 'ankle', style: flip ? 'flip' : 'ankle', dv: 2 }); }
   }
   fall(impulse, upperBias = 0.4, reason = 'hit', spin = 0) {
     if (this.state === 'fallen') return;
@@ -2573,7 +2593,7 @@ class Player {
       }
       // walking and shuffling keep the old soft step
       const legW = clamp((gaitSp - 0.6) / 1.4, 0, 1);
-      ft.set(hp.x, this.y + (fx.hop || 0), hp.z).addScaledVector(r, s * spread * H).addScaledVector(md, fxo * legW + amp * Math.sin(ph + off) * (1 - legW));
+      ft.set(hp.x, this.y + (fx.hop || 0), hp.z).addScaledVector(r, s * (spread + (fx.wide || 0)) * H).addScaledVector(md, fxo * legW + amp * Math.sin(ph + off) * (1 - legW));
       if (fx.knee && fx.knee.side === s) { ft.y += fx.knee.lift * H; ft.addScaledVector(f, fx.knee.fwd * H); }
       ft.y += fyo * legW + Math.max(0, Math.cos(ph + off)) * lift * (1 - legW);
       // high-stepping: each swing brings the knee up high and the foot through in front
@@ -2594,8 +2614,9 @@ class Player {
       }
       if (this.y > 0.05 && this.is('hurdle')) {
         // hurdler's split: lead knee drives up and forward, trail leg folds back underneath
-        if (s > 0) ft.copy(hp).addScaledVector(f, 0.42 * H).addScaledVector(UP, -0.38 * H);
-        else ft.copy(hp).addScaledVector(f, -0.42 * H).addScaledVector(UP, -0.5 * H);
+        const hk = Math.sin(clamp(this.act.t / this.act.dur, 0, 1) * Math.PI), lead = (this.id & 1) ? 1 : -1;
+        if (s === lead) ft.copy(hp).addScaledVector(f, (0.42 + 0.3 * hk) * H).addScaledVector(UP, -(0.38 - 0.14 * hk) * H);
+        else ft.copy(hp).addScaledVector(f, -(0.42 + 0.12 * hk) * H).addScaledVector(UP, -(0.5 - 0.22 * hk) * H).addScaledVector(r, s * 0.12 * hk * H);
       } else if (this.y > 0.05 && fx.jbLeg) JBAnim.leg(this, s, hp, f, ft);
       else if (this.y > 0.05) { ft.copy(hp).addScaledVector(UP, -0.85 * H).addScaledVector(f, s * 0.1); }
       if (this.tt && typeof ToeTap !== 'undefined') ToeTap.leg(this, s, hp, f, r, ft, H);
@@ -2885,6 +2906,7 @@ class World {
     this.stepBattles(dt);
     this.collide(dt);
     if (this.stepPhysical) this.stepPhysical(dt);   // block fights, bodies falling into people, balance recovery (physical.js)
+    for (const p of this.players) if (p.hurdleArm) this.hurdleArmStep(p);
     this.stepAttempts(dt);
     this.foolCheck();
     for (const p of this.players) if (!p.ghost) this.bound(p);
@@ -2927,11 +2949,14 @@ class World {
   ankleTrip(t, c, n) {
     if (c.state !== 'up' || c.is('trip')) return;
     const save = chance(clamp(0.12 + 0.35 * c.agility * c.balance - 0.15 * t.tackleSk, 0.05, 0.45) * (starOf(c, 'tackleResist') ? 1.4 : 1));
-    c.startAct('trip', rand(0.28, 0.62), { by: t, save });
+    // clipped at speed (a diving chop at the heels especially), the momentum takes him over the top
+    const flip = !save && c.speed > 6 && chance(t.chop ? 0.55 : 0.3);
+    c.startAct('trip', flip ? rand(0.1, 0.2) : c.speed > 5 ? rand(0.18, 0.4) : rand(0.28, 0.62), { by: t, save, flip });
     c.balance = Math.min(c.balance, save ? 0.45 : 0.3);
     c.defTouchT = this.time;
     if (t.state === 'up') t.fall(t.vel.clone().multiplyScalar(0.5).addScaledVector(n, 0.6).add(new V3(0, -0.3, 0)), -0.6, 'tackler', rand(-1, 1));
-    Bus.emit('wrap', { by: t, c, kind: 'ankle' });
+    t.chop = false;
+    Bus.emit('wrap', { by: t, c, kind: 'ankle', chop: true });
   }
   /* ---------- body vs body ---------- */
   collide(dt) {
@@ -2942,6 +2967,7 @@ class World {
         const b = P[j]; if (b.state === 'fallen' || b.ghost) continue;
         if (a.celebPair === b && b.celebPair === a && a.is('celeb') && b.is('celeb')) continue;   // a chest bump or a lift: they're meant to be touching
         if (Math.abs(a.y - b.y) > 1.2) continue;
+        if (a.team !== b.team && ((a.is('hurdle') && a.y > this.clearH(b)) || (b.is('hurdle') && b.y > this.clearH(a)))) continue;   // cleared him
         // a shoulder hit (BOOMSTICK) is decided at first touch, before the ordinary bump or tackle logic
         if (a.team !== b.team && ((a.act && a.act.type === 'shoulder' && !a.act.data.done) || (b.act && b.act.type === 'shoulder' && !b.act.data.done))) {
           const RR = a.radius + b.radius + 0.12, dx0 = b.pos.x - a.pos.x, dz0 = b.pos.z - a.pos.z;
@@ -3144,6 +3170,8 @@ class World {
       if (this.deadBall || !c.hasBall || c.state !== 'up' || (!dive && t.state !== 'up') || t.battle || t.grab) { A.done = true; continue; }
       if (dive && t.state === 'fallen' && t.fallT > 0.9) { A.done = true; this.missedTackle(t, c, A); continue; }
       const k = this.bodyContact(t, c, dive);
+      // a chop only has to get a fingertip on a heel: hands within a few inches of his legs is enough to clip him
+      if (dive && t.chop && k.gap > 0 && k.gap < 0.35 && (k.region === 'legs' || k.region === 'hips' || k.gap < 0.18 || c.joints[J.LF].distanceTo(t.joints[J.LHA]) < 0.45 || c.joints[J.RF].distanceTo(t.joints[J.RHA]) < 0.45 || c.joints[J.LF].distanceTo(t.joints[J.RHA]) < 0.45 || c.joints[J.RF].distanceTo(t.joints[J.LHA]) < 0.45)) { k.gap = 0; k.region = 'legs'; }
       if (t.fooledT <= 0 && k.gap <= 0) {
         A.done = true;
         const n = new V3(c.pos.x - t.pos.x, 0, c.pos.z - t.pos.z); const l = n.length() || 1; n.divideScalar(l);
@@ -3180,7 +3208,8 @@ class World {
   diveContact(t, c, n, k) {
     c.defTouchT = this.time;
     if (k.region === 'torso') return this.resolveTackle(t, c, n, Math.max(0.4, t.speed), k);
-    if (k.region === 'legs' && c.fwd(_w.a).dot(n) > 0.2 && chance(0.6)) return this.ankleTrip(t, c, n);   // from behind, all he gets is a foot
+    if (t.chop && chance(k.region === 'torso' ? 0.6 : 0.9)) return this.ankleTrip(t, c, n);   // a chop at the heels: he swipes the feet out
+    if (k.region === 'legs' && c.fwd(_w.a).dot(n) > -0.2 && chance(0.75)) return this.ankleTrip(t, c, n);   // from behind or the side, all he gets is a foot
     const rel = Math.hypot(c.vel.x - t.vel.x, c.vel.z - t.vel.z);
     const dv = 1.6 + (0.22 * c.speed + 0.2 * rel) * (0.7 + 0.4 * t.tackleSk) * (k.region === 'hips' ? 1.15 : 1);
     const back = c.vel.clone().setY(0).normalize().negate();
@@ -3736,6 +3765,54 @@ class World {
     p.fall(f.clone().multiplyScalar(1.6).add(new V3(0, 0.6, 0)), -1.5, 'slide');
     Bus.emit('slide', { p, x: x0 });   // the rules end the play where he started down
     return true;
+  }
+  /* how high a hurdler has to be to go over this man: a man going low (diving, chopping, breaking down low,
+     already falling) only to his back; a man standing up needs a real leap */
+  clearH(q) {
+    if (q.state === 'fallen' || q.diving || q.chop) return 0.45;
+    if (q.is('tackle') && (q.tackleStyle === 'low' || q.tackleStyle === 'ankle')) return 0.6;
+    return (q.closeK || 0) > 0.6 ? 0.85 : 1.02;
+  }
+  /* the hurdle button, timed for you: with a man in front, the hurdler takes off at the right stride so he's at
+     the top of the leap as he goes over him, and leaps as high as that man needs. Nobody there, it's a hurdle now. */
+  hurdleOver(p) {
+    if (p.state !== 'up' || p.y > 0 || p.cool.hurdle > 0) return false;
+    const fv = p.speed > 1 ? new V3(p.vel.x / p.speed, 0, p.vel.z / p.speed) : p.fwd(new V3());
+    let best = null, bd = 6;
+    for (const q of this.players) {
+      if (q.team === p.team || q.ghost || (q.state === 'fallen' && q.fallT > 2)) continue;
+      const rx = q.pos.x - p.pos.x, rz = q.pos.z - p.pos.z, ahead = rx * fv.x + rz * fv.z, lat = Math.abs(rx * fv.z - rz * fv.x);
+      if (ahead > 0.4 && ahead < bd && lat < 1.3) { best = q; bd = ahead; }
+    }
+    if (!best) return p.hurdle();
+    const apex = clamp(this.clearH(best) + 0.18 + 0.1 * p.agility, 0.62, 1.3);
+    p.hurdleArm = { q: best, apex, until: this.time + 1.1 };
+    this.hurdleArmStep(p);
+    return true;
+  }
+  hurdleArmStep(p) {
+    const H = p.hurdleArm; if (!H) return;
+    if (this.time > H.until || p.state !== 'up' || p.y > 0) { p.hurdleArm = null; return; }
+    const q = H.q, sp = Math.max(3.5, p.speed), fv = p.speed > 1 ? _w.a.set(p.vel.x / p.speed, 0, p.vel.z / p.speed) : p.fwd(_w.a);
+    const ahead = (q.pos.x - p.pos.x) * fv.x + (q.pos.z - p.pos.z) * fv.z;
+    // the defender keeps moving too: meet him where he'll be at the top of the jump
+    H.apex = clamp(this.clearH(q) + 0.18 + 0.1 * p.agility, 0.62, 1.3);
+    const tUp = Math.sqrt(2 * G * H.apex) / G, closeV = sp - ((q.vel.x * fv.x + q.vel.z * fv.z) || 0);
+    if (ahead < 0.3 || ahead <= Math.max(0.6, closeV * tUp) + 0.15) p.hurdle({ apex: H.apex, over: q });
+  }
+  /* the chop: trailing a faster runner, or with no angle to square up, the defender throws himself flat at
+     full extension at the runner's ankles, leading the feet. Low and horizontal, not the high dive. */
+  chopDive(p) {
+    if (p.state !== 'up' || p.hasBall) return;
+    const c = this.carrier(); if (!c || c.team === p.team) return this.dive(p);
+    const lead = c.pos.clone().addScaledVector(c.vel, 0.42), f = lead.sub(p.pos).setY(0);
+    const dd = f.length(); if (dd < 1e-3) return this.dive(p); f.divideScalar(dd);
+    p.chop = true; p.diving = true; p.mv = null;
+    p.vel.addScaledVector(f, 3.6);
+    this.attempts = this.attempts.filter(A => A.t !== p);   // the chop replaces whatever lunge he had going
+    this.startAttempt(p, c, 'dive', 1.0);
+    p.fall(f.clone().multiplyScalar(3.8).add(new V3(0, 0.55, 0)), 0.75, 'dive');   // flat and low: arms out ahead at shin height
+    Bus.emit('dive', { p, chop: true });
   }
   dive(p) {
     if (p.state !== 'up') return;
@@ -6439,7 +6516,10 @@ const AI = {
       const goal = c.pos.x * w.dir[c.team] > GOAL_X - 6;
       const escaping = closing < -0.2 || goal;
       let help = false; for (const q of w.players) if (q !== p && q.team === p.team && q.state === 'up' && hdist(q.pos, c.pos) < d - 0.3) { help = true; break; }
-      if (escaping && !help && chance(goal ? 0.03 : 0.012)) w.dive(p);
+      // trailing him (behind or alongside) as he pulls away: go low at the heels
+      const behind = c.fwd(_a.b).dot(_a.d.set(p.pos.x - c.pos.x, 0, p.pos.z - c.pos.z).normalize()) < 0.25;
+      if (behind && (escaping || c.speed > p.speed + 0.3) && chance((goal ? 0.07 : 0.035) * (help ? 0.5 : 1))) w.chopDive(p);
+      else if (escaping && !help && chance(goal ? 0.03 : 0.012)) w.dive(p);
     }
   },
   escort(p, w, play, c) {
@@ -6627,6 +6707,12 @@ const AI = {
       }
       // agile backs read it and get the timing right more often; the rest try to run through
       if (go && chance((0.45 + 0.4 * p.agility) * sk * (p.persona === 'elusive' ? 1.3 : p.persona === 'power' ? 0.7 : 1))) { p.hurdle(); return; }
+      // a defender going low at him (a dive, a chop, a cut): go over the top
+      if (!p.hurdleArm) for (const q of w.players) {
+        if (q.team === p.team || q.ghost || !(q.diving || q.chop || (q.is('tackle') && q.tackleStyle === 'low'))) continue;
+        const rx = q.pos.x - p.pos.x, rz = q.pos.z - p.pos.z, ahead = rx * fv.x + rz * fv.z, lat = Math.abs(rx * fv.z - rz * fv.x);
+        if (ahead > 0.8 && ahead < 3.8 && lat < 1.1 && chance(0.08 * (0.5 + p.agility) * sk * (p.persona === 'elusive' ? 1.4 : p.persona === 'power' ? 0.6 : 1))) { w.hurdleOver(p); return; }
+      }
     }
     if (p.mv || p.battle || p.is('truck') || p.y > 0) return;
     const dir = ctx.dir, R = B.res;
@@ -9327,7 +9413,7 @@ class HumanCtl {
         else p.startMove('sidestep', away);
       }
       if (d.take('tr')) p.truck();
-      if (d.take('hu')) p.hurdle();
+      if (d.take('hu')) w.hurdleOver(p);
       if (d.take('show')) p.showboatNext();   // early celebration: only for the man carrying the ball (player.js)
       if (d.take('b')) w.stiffArm(p);
       if (d.take('c')) w.dive(p);
@@ -9372,8 +9458,9 @@ class HumanCtl {
       if (carrier && carrier.team !== p.team) w.tackleLunge(p);
       else { p.startAct('block', 0.4); const n = AI.nearestOpp(p, w); if (n && n.d < 1.6) { const dir = _a.b.subVectors(n.q.pos, p.pos).setY(0).normalize(); n.q.vel.addScaledVector(dir, 1.6 * p.str); n.q.absorb(1.2 * p.str, dir, {}); } }
     }
-    if (d.take('c')) w.dive(p);
-    if (d.take('hu')) p.hurdle();
+    // the dive button: behind or alongside the runner it's a chop at his heels, otherwise the normal dive
+    if (d.take('c')) { const cc = w.carrier(); if (cc && cc.team !== p.team && !p.hasBall && hdist(cc.pos, p.pos) < 4 && cc.fwd(new V3()).dot(new V3(p.pos.x - cc.pos.x, 0, p.pos.z - cc.pos.z).normalize()) < 0.3) w.chopDive(p); else w.dive(p); }
+    if (d.take('hu')) w.hurdleOver(p);
     if (d.take('tr')) p.hitStick(w);   // the shoulder hit (BOOMSTICK) on the ball carrier or the receiver
     if (d.take('sw')) this.switchDef(m);
     if (d.dsw) { this.switchDir(m, d.dsw); d.dsw = null; }
@@ -33160,7 +33247,7 @@ const UI = {
       rows = [K('WASD', 'move'), K('Shift', 'sprint'), K('Click', 'mouse look'), K('E', 'interact'), K('M', 'park menu'), K('Esc', 'pause')];
     } else if (Sandbox.active) {
       ctx = 'Physics sandbox';
-      rows = [K('WASD', 'move'), K('Shift / 2×tap', 'sprint'), K('Space', 'jump'), K(kn('a'), w.ball.holder === Sandbox.you ? 'juke' : 'tackle'), K(kn('b'), w.ball.holder === Sandbox.you ? 'stiff-arm' : 'catch'), K(kn('tr'), 'truck'), K(kn('hu'), 'hurdle'), K(kn('c'), 'dive'), K('hold F', 'throw'), K('T', 'pass to me'), K('G', 'take ball'), K('click', 'spawn')];
+      rows = [K('WASD', 'move'), K('Shift / 2×tap', 'sprint'), K('Space', 'jump'), K(kn('a'), w.ball.holder === Sandbox.you ? 'juke' : 'tackle'), K(kn('b'), w.ball.holder === Sandbox.you ? 'stiff-arm' : 'catch'), K(kn('tr'), 'truck'), K(kn('hu'), 'hurdle (auto-timed over the man ahead)'), K(kn('c'), 'dive'), K('hold F', 'throw'), K('T', 'pass to me'), K('G', 'take ball'), K('click', 'spawn')];
     } else if (m.phase === 'call') { ctx = m.callEdit ? 'Change the play' : 'Pick a play'; rows = [K('1–9', 'choose'), K('W / S', 'formation'), K('click', 'choose'), K('pad', 'D-pad + A')]; if (m.callEdit) rows.push(K('Tab', 'keep current play')); }
     else if (m.phase === 'patchoice') { ctx = 'Try after touchdown'; rows = m.parkOne && m.parkOne() ? [K('1', 'go for 1'), K('2', 'go for 2')] : [K('1', 'kick'), K('2', 'go for two')]; }
     else if (m.phase === 'toss' && Pregame.active) { ctx = 'Team entrance'; rows = [K('any key', 'skip')]; }
@@ -33177,7 +33264,7 @@ const UI = {
     } else if (m.phase === 'dead') { ctx = 'Whistle'; const cw = Celeb.win && Celeb.win.human && !Celeb.win.used; rows = [K('R', 'replay'), cw ? K(CelebWheel.keyName(G.settings.celebKey || 'KeyC'), 'celebrate') : K(G.keyName(G.settings.camKey || 'KeyV'), 'camera'), K('Esc', 'pause')]; }
     else if (p) {
       if (p.hasBall && p.qbMode) { ctx = 'Quarterback'; rows = [K('hold 1–5', 'wind up'), K('release', 'throw'), K('Q', 'lob'), K('WASD', 'lead / scramble'), K(kn('sw'), 'slide (past the line)')]; }
-      else if (p.hasBall) { ctx = 'Ball carrier'; rows = [K(kn('show'), 'showboat (risky)'), K('Shift / 2×tap', 'sprint'), K(kn('a'), 'juke · stick picks the move'), K(kn('tr'), 'truck'), K(kn('hu'), 'hurdle'), K(kn('b'), 'stiff-arm'), K(kn('c'), 'dive')]; if (p.role === 'QB' && m.play.kind === 'scrimmage') rows.push(K(kn('sw'), 'slide')); if (m.play.kind !== 'scrimmage' && w.ball.pos.x * w.dir[p.team] < -GOAL_X) rows.push(K('Space', 'take a knee')); }
+      else if (p.hasBall) { ctx = 'Ball carrier'; rows = [K(kn('show'), 'showboat (risky)'), K('Shift / 2×tap', 'sprint'), K(kn('a'), 'juke · stick picks the move'), K(kn('tr'), 'truck'), K(kn('hu'), 'hurdle (auto-timed over the man ahead)'), K(kn('b'), 'stiff-arm'), K(kn('c'), 'dive')]; if (p.role === 'QB' && m.play.kind === 'scrimmage') rows.push(K(kn('sw'), 'slide')); if (m.play.kind !== 'scrimmage' && w.ball.pos.x * w.dir[p.team] < -GOAL_X) rows.push(K('Space', 'take a knee')); }
       else if (typeof Trench !== 'undefined' && Trench.duelOf(p)) { const D = Trench.duelOf(p); if (D.d === p) { ctx = 'Pass rush'; rows = [K(kn('a'), 'swim'), K(kn('b'), 'rip'), K(kn('tr'), 'bull rush'), K(kn('c'), 'spin'), K(kn('hu'), 'club'), K('WINDOW', 'go when it lights')]; } else { ctx = 'Blocking'; rows = [K(kn('a'), 'punch (vs swim/rip)'), K(kn('b'), 'anchor (vs bull)'), K(kn('tr'), 'drive'), K(kn('c'), 'recover (vs spin)')]; } }
       else if (m.play.kind !== 'scrimmage') { ctx = m.play.kickTeam === p.team ? 'Kick coverage' : 'Kick return'; rows = m.play.kickTeam === p.team ? [K(kn('a'), 'tackle'), K(kn('c'), 'dive'), K('Space', 'switch')] : [K(kn('b'), 'catch'), K(kn('a'), 'block'), K('Shift / 2×tap', 'sprint')]; }
       else if (p.team !== (m.play && m.play.off) || (w.carrier() && w.carrier().team !== p.team)) { ctx = 'Defense'; rows = m.o.park ? [K(kn('b'), 'intercept (time it)'), K('Q', 'swat'), K('Space', 'jump'), K(kn('c'), 'dive'), K(kn('a'), 'tackle'), K(kn('tr'), 'shoulder hit')] : [K(kn('a'), 'tackle'), K(kn('tr'), 'shoulder hit'), K(kn('c'), 'dive'), K(kn('b'), 'play the ball'), K('Q+' + kn('b'), 'swat'), K('Space', 'switch to best'), ...(h.dev.arrowsTaken ? [] : [K('Arrows', 'switch by direction')])]; }
