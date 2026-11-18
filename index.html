@@ -397,6 +397,12 @@ body:not(:has(#ovMenu:not([hidden]))) .tb-chip { display: none; }
 .pk-lobby li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; font-size: 13px; } .pk-lobby li.me { border-color: var(--yellow); }
 .pk-lobby li em { font-style: normal; font: 700 10px var(--f-mono); border-radius: 3px; padding: 1px 4px; } .pk-lobby li em.you { background: var(--yellow); color: #15171a; } .pk-lobby li em.cap { background: #eef1ea; color: #15171a; }
 .pk-row { display: flex; gap: 8px; margin-top: 12px; } .pk-row > * { flex: 1; margin-top: 0 !important; }
+.pk-float { position: fixed; inset: 0; pointer-events: none; z-index: 30; }
+.pk-fl { position: absolute; left: 0; top: 0; font: 900 15px "Big Shoulders Display", Impact, sans-serif; letter-spacing: 0.06em; color: #fff; padding: 3px 9px; border-radius: 6px; background: rgba(13,17,23,0.62); border: 1px solid rgba(255,255,255,0.18); white-space: nowrap; opacity: 0; transition: opacity 0.2s; text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
+.pk-fl.on { opacity: 1; }
+.pk-fl.big { color: #f2d21b; font-size: 17px; border-color: rgba(242,210,27,0.5); }
+.pk-fl.def { color: #7fd3ff; border-color: rgba(127,211,255,0.45); }
+.pk-fl.battle { color: #ffb347; border-color: rgba(255,179,71,0.45); font-size: 14px; }
 .pk-quests { list-style: none; padding: 0; margin: 6px 0; display: flex; flex-direction: column; gap: 6px; } .pk-quests li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
 .pk-quests li em { font-style: normal; font-family: var(--f-mono); font-size: 12px; color: var(--yellow); } .pk-quests li span { font-size: 12px; color: var(--dim); } .pk-quests li.done { opacity: 0.6; } .pk-quests li.done em { color: var(--good); }
 .pk-bar { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 5px; overflow: hidden; } .pk-bar i { display: block; height: 100%; background: var(--yellow); }
@@ -3985,7 +3991,15 @@ class World {
     if (p.state === 'fallen') risk *= 2.4;
     else if (p.balance < 0.3) risk *= 1.7;
     if (p.y > 0.05) risk *= 1.15;
-    if (p.human && b.kind === 'pass' && !defending) risk *= pressed ? 0.6 : 1.5;
+    const PKm = typeof Game !== 'undefined' && Game.match && Game.match.o && Game.match.o.park && Game.world === this;
+    if (PKm && p.human && b.kind === 'pass') {
+      // the Park: catching (and picking it off) is a timing skill. Press K just as it gets there for the cleanest
+      // catch; early is fine, never pressing makes it a lot harder. Defenders who time it get a real shot at the pick.
+      const since = this.time - (p.human.catchPress || -9);
+      p._catchGrade = since < 0.24 ? 'perfect' : since < 0.5 ? 'good' : 'none';
+      if (!defending) risk *= since < 0.24 ? 0.42 : since < 0.5 ? 0.65 : 1.6;
+      else risk *= since < 0.26 ? 0.72 : since < 0.5 ? 0.9 : 1.4;
+    } else if (p.human && b.kind === 'pass' && !defending) risk *= pressed ? 0.6 : 1.5;
     const wxStar = starOf(p, 'weatherCatch') || 1;   // a star receiver's hands barely notice the weather
     risk *= 1 + (1 - this.env.ballGrip) * (kickBall ? 2.5 : 4) * wxStar;
     // weather makes the hard ones harder, not the routine ones: a wet ball at full stretch, at speed or in
@@ -4028,7 +4042,8 @@ class World {
           p.catchTried = this.flightId;
           const wantSwat = p.swatIntent && b.kind === 'pass' && b.thrower && b.thrower.team !== p.team;
           if (wantSwat) {
-            if (chance(0.55 + 0.35 * p.aware + (starOf(p, 'swat') || 0))) { this.swat(p); continue; }
+            const swT = p.human && p.human.swatPress != null && this.time - p.human.swatPress < 0.35 ? 0.15 : 0;   // a well-timed swat button (the Park)
+            if (chance(0.55 + 0.35 * p.aware + (starOf(p, 'swat') || 0) + swT)) { this.swat(p); continue; }
           }
           const { pr, contested } = this.catchChance(p, b);
           if (this.debugCatch) this.debugCatch(p, b, pr, d);
@@ -5663,6 +5678,15 @@ const FORM_INFO = {
   iform: { name: 'I-Form', dropX: 0, fb: true }, goal: { name: 'Goal Line', dropX: 0, fb: true },
 };
 const FORM_ORDER = ['gun', 'trips', 'empty', 'bunch', 'pistol', 'single', 'iform', 'goal'];
+/* 1v1 park: the receiver runs a route, not a play */
+const PARK_ROUTES = [
+  ['go', 'Go', 5, 'Straight up the field. Win with speed.'], ['slant', 'Slant', 2, 'Quick break inside. Ball out fast.'],
+  ['out', 'Out', 3, 'Stem upfield, snap it to the sideline.'], ['hitch', 'Hitch', 2, 'Five yards and turn back to the ball.'],
+  ['curl', 'Curl', 4, 'Push deep, sit down and come back.'], ['comeback', 'Comeback', 4, 'Sell the go, break back to the sideline.'],
+  ['post', 'Post', 5, 'Vertical, then angle to the middle.'], ['corner', 'Corner', 5, 'Vertical, then break to the pylon.'],
+  ['dig', 'Dig', 4, 'Run deep and cut flat across the middle.'], ['drag', 'Drag', 2, 'Shallow across the field under the corner.'],
+  ['fade', 'Fade', 5, 'Release outside, the ball goes up high.'], ['stick', 'Stick', 2, 'Short stem, sit in the open spot.'],
+].map(([r, name, drop, tip]) => ({ id: 'r_' + r, name, type: 'pass', form: 'gun', drop, routes: { X: r, Z: 'go', SL: 'seam', TE: 'seam', RB: 'check' }, tip }));
 const PLAYBOOK = [
   // ---- Shotgun ----
   { id: 'verts', name: 'Four Verticals', type: 'pass', form: 'gun', drop: 5, routes: { X: 'go', Z: 'go', SL: 'seam', TE: 'seam', RB: 'check' }, tip: 'Shots deep. Hit the seam early or the bomb late.' },
@@ -7330,7 +7354,7 @@ class Match {
 
   /* ---------------- game flow ---------------- */
   start() {
-    if (this.o.park) { this.parkFirst = chance(0.5) ? 0 : 1; this.newPossession(this.parkFirst, this.o.park.start); return this.toCall(); }
+    if (this.o.park) { this.parkFirst = chance(0.5) ? 0 : 1; this.newPossession(this.parkFirst, this.o.park.start); if (!this.o.park.noEntrance) return this.parkEntrance(); return this.toCall(); }
     if (this.o.practice || this.o.career) {
       const t = this.o.practice ? this.o.practice.team : this.o.career.team;
       const startOff = this.o.practice ? (this.o.practice.side === 'off' ? t : 1 - t) : t;
@@ -7409,12 +7433,14 @@ class Match {
     this.spot = clamp(yard, 1, 99);
     this.down = 1;
     this.togo = Math.min(10, 100 - this.spot);
+    if (this.parkOne()) this.togo = 100 - this.spot;   // 1v1: four downs to score, no first downs
     this.ballZ = clamp(z, -HASH_Z, HASH_Z);
   }
+  parkOne() { return !!(this.o.park && this.o.park.n === 1); }
   downText() {
     if (this.phaseKind === 'kick' && this.play && this.play.kind === 'kickoff') return 'Kickoff';
     if (this.play && this.play.pat) return 'Extra point';
-    if (this.twoPointPending || (this.play && this.play.twoPoint)) return 'Two-point try';
+    if (this.twoPointPending || (this.play && this.play.twoPoint)) return this.parkOne() ? `${this.parkTryPts || 2}-point try` : 'Two-point try';
     const goal = this.spot + this.togo >= 100;
     return `${ORD[clamp(this.down, 1, 4)]} & ${goal ? 'Goal' : Math.max(1, Math.round(this.togo))}`;
   }
@@ -7436,6 +7462,13 @@ class Match {
     const off = this.poss, def = 1 - off;
     this.setPhase('call');
     if (!this.isHuman(off)) this.pendingCalls.off = this.cpuOffCall();
+    // the Park (2v2 and 5v5): the quarterback calls the plays. If you aren't him, your QB picks it and you run your part
+    else if (this.o.park && this.o.park.n >= 2 && this.parkYou && this.parkYou.off && this.parkYou.off.slot !== 'QB' && !this.twoPointPending) {
+      const c = this.cpuOffCall(); this.pendingCalls.off = c;
+      const T = this.teams[off], qb = T.off.find(p => p.slot === 'QB'), r = c.routes && c.routes[this.parkYou.off.slot];
+      const job = c.type === 'run' ? (this.parkYou.off.slot === 'RB' ? 'you carry it' : 'block for the run') : r && r !== 'block' ? `run a ${r === 'check' ? 'check-down' : r} route` : 'block';
+      this.banner(`QB CALL · ${c.name.toUpperCase()}`, `${qb ? qb.name + ' calls it' : 'Your QB calls it'} · ${job}`, 'info');
+    }
     if (!this.isHuman(def)) this.pendingCalls.def = this.cpuDefCall(def);
     // park 1v1 and 2v2: no defensive playbook (man on the receiver; the second defender's safety-or-blitz call is made on the field)
     else if (this.o.park && this.o.park.n < 5) this.pendingCalls.def = DEFBOOK[0];
@@ -7455,6 +7488,7 @@ class Match {
      down), coverage and pressure on defense */
   callPages(side) {
     if (side === 'def') return DEF_PAGES.map(pg => ({ name: pg.name, opts: DEFBOOK.filter(d => d.grp === pg.id) }));
+    if (this.parkOne()) return [{ name: 'Routes', opts: PARK_ROUTES }];
     if (this.o.park) { const B = this.parkBook(); return FORM_ORDER.map(f => ({ name: FORM_INFO[f].name, opts: B.filter(p => (p.page || p.form) === f) })).filter(pg => pg.opts.length); }
     const extra = this.offOptions().filter(o => o.type === 'punt' || o.type === 'fg');
     return FORM_ORDER.map(f => ({ name: FORM_INFO[f].name, opts: PLAYBOOK.filter(p => (p.page || p.form) === f).concat(extra) }));
@@ -7901,6 +7935,8 @@ class Match {
         Bus.emit('parkClock', { team: play.off });
         this.deadAt(play.off, play.qb.pos.x, 'clock');
       }
+    } else if (this.phase === 'entrance') {
+      this.stepEntrance(dt); w.step(dt);
     } else {
       for (const h of this.o.humans) h.idle && h.idle(dt, this);
       if (this.phase === 'toss') this.stepToss(dt);
@@ -8030,8 +8066,10 @@ class Match {
           play.intBy = p;
           play.turnover = true; play.caught = true;
           st(p.team).ints++;
-          this.banner('INTERCEPTED!', `#${p.num} ${p.name}`, this.isHuman(p.team) ? 'good' : 'bad');
+          this.banner('INTERCEPTED!', this.parkOne() ? `#${p.num} ${p.name} · +2` : `#${p.num} ${p.name}`, this.isHuman(p.team) ? 'good' : 'bad');
           play.highlights.push({ t: w.time, kind: 'int' });
+          // 1v1 park: a pick is worth two and ends the play right there
+          if (this.parkOne() && play.parkInt == null) { play.parkInt = p.team; this.score[p.team] += 2; Bus.emit('score', { team: p.team, pts: 2, int: true }); this.deadAt(p.team, p.pos.x, 'int'); }
         } else if (d.how === 'kickcatch') {
           if (p.team === play.recv) play.recvTouched = true;
           const dir = w.dir[p.team];
@@ -8264,7 +8302,7 @@ class Match {
     this.incompleteNext(play);
   }
   incompleteNext(play) {
-    if (play.twoPoint) { this.banner('NO GOOD', 'Two-point try fails', 'info'); play.next = () => this.startKickoff(play.off, 35); return; }
+    if (play.twoPoint) { this.banner('NO GOOD', this.parkOne() ? `${this.parkTryPts || 2}-point try fails` : 'Two-point try fails', 'info'); play.next = () => this.tryOver(play); return; }
     play.next = () => this.advanceDown(play.off, this.spot, 'inc');
   }
   deadAt(team, x, why, oob) {
@@ -8273,6 +8311,7 @@ class Match {
     const dir = w.dir[team];
     let yard = xToYard(x, dir);
     this.endPlayCommon(!!oob || play.kind !== 'scrimmage' || team !== play.off);
+    if (play.parkInt != null) { play.turnover = true; play.next = () => play.twoPoint ? this.tryOver(play) : this.parkAfterScore(1 - play.parkInt); return; }
     // a blocked kick that somebody picked up: the defense keeps it where he went down; the kicking team running
     // it doesn't get a new series out of it (and a try is simply over)
     // ...and the same goes for a kick that never got off (holder or kicker brought down, a bad snap smothered):
@@ -8286,7 +8325,7 @@ class Match {
       return;
     }
     // two-point try ends with no score
-    if (play.twoPoint) { this.banner('NO GOOD', 'Two-point try fails', 'info'); play.next = () => this.startKickoff(play.off, 35); return; }
+    if (play.twoPoint) { this.banner('NO GOOD', this.parkOne() ? `${this.parkTryPts || 2}-point try fails` : 'Two-point try fails', 'info'); play.next = () => this.tryOver(play); return; }
     // ball dead in own end zone
     if (yard <= 0) {
       const P = play.poss && play.poss[team], left = play.leftEZ && play.leftEZ[team];
@@ -8411,8 +8450,10 @@ class Match {
       return;
     }
     if (play.twoPoint) {
-      this.score[team] += 2; Bus.emit('score', { team, pts: 2 });
-      this.banner(team === play.off ? 'TWO-POINT GOOD' : 'DEFENSIVE TWO', '', this.isHuman(team) ? 'good' : 'bad');
+      const tp = this.parkOne() && team === play.off ? this.parkTryPts || 2 : 2;
+      this.score[team] += tp; Bus.emit('score', { team, pts: tp });
+      this.banner(team === play.off ? (this.parkOne() ? `${tp}-POINT TRY GOOD` : 'TWO-POINT GOOD') : 'DEFENSIVE TWO', '', this.isHuman(team) ? 'good' : 'bad');
+      if (this.o.park) { play.next = () => this.tryOver(play); return; }
       // the team that scored the touchdown kicks off, whoever scored on the try
       play.next = () => this.startKickoff(play.off, 35);
       return;
@@ -8429,6 +8470,7 @@ class Match {
     this.banner('TOUCHDOWN', `${this.teams[team].def.name} · #${p.num} ${p.name}`, this.isHuman(team) || this.humanTeams.size === 0 ? 'good' : 'bad');
     Bus.emit('score', { team, pts: 6, td: true, p });
     if (this.o.practice) { play.next = () => this.newBall(team, 30); return; }
+    if (this.parkOne()) { play.next = () => this.parkTry(team); return; }
     if (this.o.park) { this.score[team] += 1; Bus.emit('score', { team, pts: 1, park: true }); play.next = () => this.parkAfterScore(team); return; }
     play.next = () => this.patChoice(team);
   }
@@ -8448,6 +8490,7 @@ class Match {
   chooseTry(two) {
     if (this.phase !== 'patchoice') return;
     const team = this.poss;
+    if (this.parkOne()) return this.startParkTry(team, two);
     if (two) return this.startTwoPoint(team);
     this.spot = 85; this.setupFG(true);
   }
@@ -8462,6 +8505,21 @@ class Match {
     this.twoPointPending = true;
     this.toCall();
   }
+  /* 1v1 park try after a touchdown: one snap, from the 5 for one point or from the 10 for two */
+  parkTry(team) {
+    this.poss = team; this.twoPointPending = false;
+    this.setPhase('patchoice');
+    if (!this.isHuman(team)) this.chooseTry(chance(0.35));
+  }
+  startParkTry(team, two) {
+    this.parkTryPts = two ? 2 : 1;
+    this.newPossession(team, two ? 90 : 95, 0);
+    this.down = 1; this.togo = 100 - this.spot;
+    this.twoPointPending = true;
+    this.banner(two ? 'GOING FOR 2' : 'GOING FOR 1', two ? 'One snap from the 10' : 'One snap from the 5', 'info');
+    this.toCall();
+  }
+  tryOver(play) { if (this.o.park) return this.parkAfterScore(play.off); this.startKickoff(play.off, 35); }
   /* CPU try decision: kick by default; go for two when the chart says a 2 matters late */
   cpuGoesForTwo(team) {
     if (this.o.practice || this.o.career) return false;
@@ -8717,6 +8775,7 @@ class Match {
     this.parkFirst = 0;
   }
   parkBook() {
+    if (this.o.park.n === 1) return PARK_ROUTES;
     const runOK = this.o.park.off.includes('RB');
     const B = PLAYBOOK.filter(p => p.form !== 'goal' && (p.type === 'pass' || (runOK && p.type === 'run')));
     return B.length ? B : PLAYBOOK.filter(p => p.type === 'pass');
@@ -8758,9 +8817,58 @@ class Match {
     if (typeof Game !== 'undefined' && Game.match === this) Game.careerP = you;
     if (play.off === 0 && you.slot !== 'QB') play.favor = you;
   }
+  /* Park entrances: before the game both sides come on from the sideline one at a time (a jog, a strut, a sprint),
+     line up facing each other at midfield and show off: flexes, chest pounds, dances, points, swagger. Home is
+     introduced, then Away. About seven seconds; any key skips it. */
+  parkEntrance() {
+    const P = this.o.park, w = this.w, E = this.ent = { t: -1.8, list: [], intro: [false, false] };   // starts as the matchup card clears
+    const anims = ['flex_big', 'chest_pound', 'arms_crossed', 'dance', 'point_sky', 'fist_pump', 'quick_flex', 'arms_spread', 'line_dance', 'prowl', 'flex_low', 'cross_sway', 'nod', 'swagger_walk'];
+    const ps = [];
+    for (const t of [0, 1]) this.teams[t].off.filter(p => P.off.includes(p.slot) && !/^AllTime/.test(p.name || '')).forEach((p, i, A) => ps.push({ p, t, i, n: A.length }));
+    w.players = ps.map(e => e.p); for (const p of this.all) p.ghost = !w.players.includes(p);
+    const used = new Set();
+    for (const e of ps) {
+      const s = e.t ? 1 : -1, z0 = HALF_W + 2;
+      e.p.place(s * (5 + e.i * 1.4), z0 + e.i * 0.7, -Math.PI / 2); e.p.vel.set(0, 0, 0);
+      let a = pick(anims); for (let k = 0; k < 6 && used.has(a); k++) a = pick(anims); used.add(a);
+      E.list.push({ p: e.p, t: e.t, tgt: new V3(s * (3.5 + (e.i % 2) * 2.2), 0, 9 + (e.i - (e.n - 1) / 2) * 2.6), delay: 0.3 + e.t * 2.1 + e.i * 0.4, pace: pick([0.62, 0.75, 0.95]), anim: a, arrived: false });
+    }
+    this.setPhase('entrance');
+  }
+  stepEntrance(dt) {
+    const E = this.ent; if (!E) return this.endEntrance();
+    E.t += dt;
+    for (const t of [0, 1]) if (!E.intro[t] && E.t > 0.35 + t * 2.1) {
+      E.intro[t] = true;
+      const names = E.list.filter(x => x.t === t).map(x => x.p.name).join(' · ');
+      this.banner(t ? 'AWAY' : 'HOME', names, 'info');
+    }
+    for (const e of E.list) {
+      const p = e.p;
+      if (p.celebCtl && p.is('celeb')) { p.celebCtl(p, dt); continue; }
+      if (E.t < e.delay) { p.desired.set(0, 0, 0); continue; }
+      const d = hdist(p.pos, e.tgt);
+      if (!e.arrived && d > 0.6) { AI.seek(p, e.tgt, e.pace, 0.6); p.sprint = e.pace > 0.8; continue; }
+      p.desired.set(0, 0, 0); p.sprint = false;
+      if (!e.arrived) {
+        e.arrived = true;
+        const face = new V3(e.t ? -1 : 1, 0, 0);
+        p.faceDir = face.clone();
+        p.startAct('celeb', 2.6 + Math.random() * 0.8, { anim: e.anim, dir: face.clone(), face: face.clone(), delay: Math.random() * 0.2 });
+        p.celebCtl = (pp, dd) => CelebAnim.drive(pp, dd);
+      }
+    }
+    if (E.t > 8.2 || (E.t > -1 && E.skip)) this.endEntrance();
+  }
+  endEntrance() {
+    if (this.phase !== 'entrance') return;
+    for (const e of (this.ent ? this.ent.list : [])) { if (e.p.is('celeb')) e.p.act = null; e.p.celebCtl = null; }
+    this.ent = null;
+    this.toCall();
+  }
   parkAfterScore(team) {
     const P = this.o.park;
-    if (this.score[team] >= P.target || this.parkOT) {
+    if (Math.max(this.score[0], this.score[1]) >= P.target || this.parkOT) {
       this.setPhase('over');
       const [a, b] = this.score;
       this.banner('FINAL', `${this.teams[0].def.abbr} ${a} – ${b} ${this.teams[1].def.abbr}`, 'info');
@@ -9219,11 +9327,13 @@ class HumanCtl {
     // without the ball
     // career receiver: call for the ball while the quarterback still has it (Space / A). Whether he looks your
     // way depends on how good you are: a star gets the ball forced to him, a backup is mostly ignored.
-    if (this.locked === p && m.o.career && play.kind === 'scrimmage' && play.off === p.team && !play.thrown && b.holder && b.holder.slot === 'QB' && p.brain && p.brain.job === 'route' && !play.callBall && d.take('sw')) this.callForBall(m, play, p);
+    if (this.locked === p && m.o.career && !m.o.park && play.kind === 'scrimmage' && play.off === p.team && !play.thrown && b.holder && b.holder.slot === 'QB' && p.brain && p.brain.job === 'route' && !play.callBall && d.take('sw')) this.callForBall(m, play, p);
+    // the Park: K calls for the ball while the quarterback still has it; once it's in the air, K is the catch
+    else if (this.locked === p && m.o.park && play.kind === 'scrimmage' && play.off === p.team && b.state !== 'air' && !play.thrown && b.holder && b.holder.slot === 'QB' && b.holder !== p && d.pressed.has('b')) { d.take('b'); if (!play.callBall && p.brain && p.brain.job === 'route') this.callForBall(m, play, p); }
     // otherwise Space is the jump (going up for a high ball, or for a jump ball)
     else if (this.locked === p && m.o.career && typeof RoadCtl !== 'undefined' && d.take('sw')) RoadCtl.jump(p, m);
     // a pass on its way to you: the hands come up as it arrives (the catch button still leaps and reaches)
-    if (this.locked === p && m.o.career && b.state === 'air' && b.kind === 'pass' && b.target === p && p.state === 'up' && !p.act) {
+    if (this.locked === p && m.o.career && !m.o.park && b.state === 'air' && b.kind === 'pass' && b.target === p && p.state === 'up' && !p.act) {   // (the Park leaves the timing to you)
       const cp = b.catchPoint && b.catchPoint(1.3);
       if (cp && cp.p && hdist(p.pos, cp.p) < 2.6 && cp.t < 0.5) { p.startAct('reach', 0.45, {}); this.catchPress = w.time; }
     }
@@ -9234,7 +9344,13 @@ class HumanCtl {
       p.startAct('reach', 0.5, {});
       if (b.state === 'air' && p.leapNeed(b, [0.05, 0.6])) p.jump(1);   // the catch button only leaps for a ball that's over his head
     }
-    if (b.state === 'air' && b.kind === 'pass' && b.thrower && b.thrower.team !== p.team) p.swatIntent = d.s.lob;
+    // the Park: Q is its own swat button. A tap swings at the ball (and leaps for a high one); the swat stays live for
+    // a moment, so it's timed like the catch. Holding Q still works too.
+    if (m.o.park && this.locked === p && b.state === 'air' && b.kind === 'pass' && b.thrower && b.thrower.team !== p.team) {
+      if (d.s.lob && !this._qWas && p.state === 'up' && !p.is('swat')) { this.swatPress = w.time; p.startAct('swat', 0.32, { target: b.pos.clone(), one: chance(0.4) ? (chance(0.5) ? 1 : -1) : 0 }); if (p.y === 0 && p.leapNeed && p.leapNeed(b, [0.05, 0.7])) p.jump(0.95); }
+      p.swatIntent = d.s.lob || w.time - (this.swatPress == null ? -9 : this.swatPress) < 0.6;
+    } else if (b.state === 'air' && b.kind === 'pass' && b.thrower && b.thrower.team !== p.team) p.swatIntent = d.s.lob;
+    this._qWas = d.s.lob;
     const carrier = w.carrier();
     // receivers: J is a release off the line, then a route move; corners: J at the snap is a press jam (routeplay.js)
     if (play.kind === 'scrimmage' && !play.thrown && s.a !== undefined && typeof RoutePlay !== 'undefined') {
@@ -10995,7 +11111,7 @@ const Gfx = {
     const X = (yd) => (yd + 66) * PX;          // yd: -66..66 along length
     const Z = (yd) => (yd + 33) * sy;          // yd across
     // the turf: the classic green with five-yard mowing stripes, or a created school's own pattern and color
-    const TF = { green: ['#2f6b2a', '#3a7a31', '#357330'], blue: ['#1d3f7a', '#2a54a0', '#24498e'], red: ['#6a1c1c', '#8a2626', '#7a2222'], purple: ['#3a2260', '#4e2e82', '#452874'], black: ['#141518', '#24262b', '#1c1e22'], grey: ['#4a4e54', '#5c6168', '#53575d'], teal: ['#14504f', '#1c6a68', '#185d5b'], orange: ['#8a3e14', '#a84e1c', '#994618'] }[V && V.turfColor || 'green'] || ['#2f6b2a', '#3a7a31', '#357330'];
+    const TF = { indoor: ['#2f7d2c', '#3b8f35', '#378a32'], fall: ['#4d6328', '#5b7232', '#54692d'], green: ['#2f6b2a', '#3a7a31', '#357330'], blue: ['#1d3f7a', '#2a54a0', '#24498e'], red: ['#6a1c1c', '#8a2626', '#7a2222'], purple: ['#3a2260', '#4e2e82', '#452874'], black: ['#141518', '#24262b', '#1c1e22'], grey: ['#4a4e54', '#5c6168', '#53575d'], teal: ['#14504f', '#1c6a68', '#185d5b'], orange: ['#8a3e14', '#a84e1c', '#994618'] }[V && V.turfColor || 'green'] || ['#2f6b2a', '#3a7a31', '#357330'];
     g.fillStyle = TF[0]; g.fillRect(0, 0, c.width, c.height);
     const pat = V && V.turf || 'classic';
     if (pat === 'classic' || pat === 'wide') for (let i = -10; i < 10; i++) { const w = pat === 'wide' ? 10 : 5; if (pat === 'wide' && i % 2) continue; g.fillStyle = (pat === 'wide' ? (i / 2) % 2 : i % 2) ? TF[1] : TF[2]; g.fillRect(X(i * 5), Z(-26.67), w * PX + 1, 53.34 * sy); }
@@ -12865,7 +12981,7 @@ Object.assign(Gfx, {
     const M = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: lin(c), roughness: 0.85 }, o));
     const dark = M(0x15181d, { roughness: 0.8 }), conc = M(0x7a7c80, { roughness: 0.95 });
     const VB = { g, seats, tags, towers, M, dark, conc, home, away };
-    if (V.park) this.parkGrounds(V, VB); else if (V.hsCampus) this.hsField(V, VB); else if (V.tier === 'small') this.smallField(V, VB); else if (V.oval) this.ovalBowl(V, VB); else this.bowl(V, VB);
+    if (V.facility) this.facilityHall(V, VB); else if (V.park) this.parkGrounds(V, VB); else if (V.hsCampus) this.hsField(V, VB); else if (V.tier === 'small') this.smallField(V, VB); else if (V.oval) this.ovalBowl(V, VB); else this.bowl(V, VB);
     this.surroundings(V, VB);
     this.worldFx = null; if (V.world && V.world !== 'earth' && this.worldscape) this.worldscape(V, VB);
     this.natty = null;
@@ -13646,7 +13762,7 @@ Object.assign(Gfx, {
   /* ---------------- what's around the stadium ---------------- */
   surroundings(V, VB) {
     const { g, M } = VB, S = V.surround || {}, small = V.tier === 'small';
-    const ex = V.park ? { x: 150, z: 112 } : V.oval ? { x: ENDLINE_X + 112, z: HALF_W + 102 } : V.hsCampus ? { x: 118, z: 130 } : small ? { x: ENDLINE_X + 30, z: HALF_W + 40 } : { x: ENDLINE_X + 44, z: HALF_W + 50 };
+    const ex = V.facility ? { x: 95, z: 75 } : V.park ? { x: 150, z: 145 } : V.oval ? { x: ENDLINE_X + 112, z: HALF_W + 102 } : V.hsCampus ? { x: 118, z: 130 } : small ? { x: ENDLINE_X + 30, z: HALF_W + 40 } : { x: ENDLINE_X + 44, z: HALF_W + 50 };
     const PF = V.oval && this.practiceAt;
     const outside = (x, z) => (Math.abs(x) > ex.x || Math.abs(z) > ex.z) && !(PF && Math.abs(x - PF[0]) < 64 && Math.abs(z - PF[1]) < 40);
     const spot = (r0, r1) => { for (let k = 0; k < 40; k++) { const a = rand(0, 6.283), r = rand(r0, r1), x = Math.cos(a) * r * 1.25, z = Math.sin(a) * r; if (outside(x, z)) return [x, z]; } return [r1, 0]; };
@@ -14138,7 +14254,13 @@ Object.assign(Gfx, {
     for (const s of [-1, 1]) {
       const x0 = s < 0 ? X(-60) : X(50);
       const ez = V.ez;
-      if (ez !== 'plain') { g.fillStyle = ez === 'black' ? '#141518' : ez === 'charcoal' ? '#2e3034' : ez === 'green' ? '#25502b' : ez === 'trim' ? trim : T.end; g.fillRect(x0, Z(-26.67), 10 * PX, 53.34 * sy); }
+      if (ez !== 'plain') { g.fillStyle = ez === 'facility' ? '#b3202a' : ez === 'harvest' ? '#a8461a' : ez === 'black' ? '#141518' : ez === 'charcoal' ? '#2e3034' : ez === 'green' ? '#25502b' : ez === 'trim' ? trim : T.end; g.fillRect(x0, Z(-26.67), 10 * PX, 53.34 * sy); }
+      if (ez === 'harvest') {   // a flannel plaid in rust, brown and gold
+        g.save(); g.beginPath(); g.rect(x0, Z(-26.67), 10 * PX, 53.34 * sy); g.clip();
+        for (let k = 0; k < 14; k++) { const yy = Z(-26.67) + k * 53.34 * sy / 14; g.fillStyle = 'rgba(70,32,14,0.45)'; g.fillRect(x0, yy, 10 * PX, 53.34 * sy / 28); g.fillStyle = 'rgba(232,178,64,0.28)'; g.fillRect(x0, yy + 53.34 * sy / 20, 10 * PX, 0.25 * sy); }
+        for (let k = 0; k < 4; k++) { const xx = x0 + (k + 0.25) * 2.5 * PX; g.fillStyle = 'rgba(70,32,14,0.45)'; g.fillRect(xx, Z(-26.67), 1.25 * PX, 53.34 * sy); g.fillStyle = 'rgba(232,178,64,0.28)'; g.fillRect(xx + 1.6 * PX, Z(-26.67), 0.25 * PX, 53.34 * sy); }
+        g.restore();
+      }
       if (ez === 'checker') {   // the orange-and-white checkerboard end zone
         const cw = 10 * PX / 3, n = 16, ch = 53.34 * sy / n;
         for (let i = 0; i < 3; i++) for (let j = 0; j < n; j++) { g.fillStyle = (i + j) % 2 ? '#f4f4ee' : T.end; g.fillRect(x0 + i * cw, Z(-26.67) + j * ch, cw + 0.5, ch + 0.5); }
@@ -14147,7 +14269,21 @@ Object.assign(Gfx, {
       const txt = s < 0 ? word : word2, fs = Math.min(5.6 * PX, (50 * sy) / (txt.length * 0.62));
       g.font = `900 ${Math.round(fs)}px "Big Shoulders Display", Impact, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
       if (ez === 'plain') { g.lineWidth = 0.4 * PX; g.strokeStyle = '#f4f4ee'; g.strokeText(txt, 0, 0); g.fillStyle = T.end; g.fillText(txt, 0, 0); }
-      else { g.fillStyle = ez === 'trim' ? Emblem.hex(T.jersey) : V.ezText || '#fff'; if (ez === 'checker') { g.lineWidth = 0.9 * PX; g.strokeStyle = '#3a3b3d'; g.strokeText(txt, 0, 0); g.fillStyle = T.end; } g.fillText(txt, 0, 0); if (ez === 'black' || ez === 'green' || ez === 'charcoal') { g.lineWidth = 0.12 * PX; g.strokeStyle = '#fff'; g.strokeText(txt, 0, 0); } }
+      else { if (ez === 'harvest' || ez === 'facility') { g.lineWidth = (ez === 'facility' ? 0.7 : 0.5) * PX; g.strokeStyle = ez === 'facility' ? '#55585c' : '#3a1a0a'; g.strokeText(txt, 0, 0); } g.fillStyle = ez === 'trim' ? Emblem.hex(T.jersey) : V.ezText || '#fff'; if (ez === 'checker') { g.lineWidth = 0.9 * PX; g.strokeStyle = '#3a3b3d'; g.strokeText(txt, 0, 0); g.fillStyle = T.end; } g.fillText(txt, 0, 0); if (ez === 'black' || ez === 'green' || ez === 'charcoal') { g.lineWidth = 0.12 * PX; g.strokeStyle = '#fff'; g.strokeText(txt, 0, 0); } }
+      g.restore();
+    }
+    // the Harvest Showdown: fallen leaves blown across the field (thick along the sidelines and in the end zones) and the
+    // event's name along both sidelines
+    if (V.harvest) {
+      const cols = ['#c8501c', '#e07a1f', '#e3a628', '#a8321e', '#8a4a1c', '#d8902a'];
+      const leaf = (cx, cz, r, rot, col) => { g.save(); g.translate(cx, cz); g.rotate(rot); g.fillStyle = col; g.beginPath(); g.moveTo(-r, 0); g.quadraticCurveTo(0, -r * 0.75, r, 0); g.quadraticCurveTo(0, r * 0.75, -r, 0); g.fill(); g.strokeStyle = 'rgba(60,24,8,0.55)'; g.lineWidth = Math.max(1, r * 0.12); g.beginPath(); g.moveTo(-r * 0.9, 0); g.lineTo(r * 0.9, 0); g.stroke(); g.restore(); };
+      for (let i = 0; i < 1400; i++) {
+        const edge = Math.random() < 0.55, x = edge ? rand(-62, 62) : rand(-58, 58) * (Math.random() < 0.5 ? 1 : 0.6);
+        const z = edge ? (Math.random() < 0.5 ? -1 : 1) * rand(21, 29) : rand(-26, 26);
+        leaf(X(x), Z(z), rand(0.18, 0.34) * PX, rand(0, 6.28), cols[(Math.random() * cols.length) | 0]);
+      }
+      g.save(); g.font = `900 ${Math.round(2.2 * sy)}px "Big Shoulders Display", Impact, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = 'rgba(244,214,140,0.92)';
+      for (const xx of [-25, 25]) { g.save(); g.translate(X(xx), Z(-21)); g.rotate(Math.PI); g.fillText('HARVEST SHOWDOWN', 0, 0); g.restore(); g.save(); g.translate(X(xx), Z(21)); g.fillText('HARVEST SHOWDOWN', 0, 0); g.restore(); }
       g.restore();
     }
     // a worn, patchy small-town field
@@ -14164,7 +14300,7 @@ Object.assign(Gfx, {
     if (V.midLogo === 'none' && !V.event) return;
     const img = new Image();
     img.onload = () => { const g = c.getContext('2d'), s = (V.logo || 9) * PX; g.save(); g.translate(X(0), Z(0)); g.rotate(Math.PI / 2); g.drawImage(img, -s / 2, -s / 2, s, s); g.restore(); tex.needsUpdate = true; };
-    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(V.event && typeof Bowls !== 'undefined' ? Bowls.svg(V.event, 512) : V.midLogo === 'secondary' && T.art2 ? Emblem.mark(T.art2, T, 512) : Emblem.svg(T, 512));
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(V.midSvg ? V.midSvg : V.event && typeof Bowls !== 'undefined' ? Bowls.svg(V.event, 512) : V.midLogo === 'secondary' && T.art2 ? Emblem.mark(T.art2, T, 512) : Emblem.svg(T, 512));
   },
 
   /* the crowd's colors: home colors almost everywhere at a big school (thinner at a small one), the student
@@ -15076,6 +15212,8 @@ const Gear = {
     const g = this.resolve0(L, p, featured);
     if (p.outfitOv) g.outfit = p.outfitOv;
     if (p.casualOv) g.casual = { ...(g.casual || {}), ...p.casualOv };
+    // a won star jersey: his number on your shirt
+    if (p.casualOv && p.casualOv.num != null && g.outfit === 'shirt') { g.num = p.casualOv.num; g.jersey = { ...g.jersey, numColor: p.casualOv.numColor }; }
     return g;
   },
   resolve0(L, p, featured) {
@@ -20025,6 +20163,10 @@ const Emblem = {
   ink(c) { const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255; return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#15171a' : '#ffffff'; },
   /* the mascot drawings: each in a 200×200 box, P = primary, S = secondary, K = outline */
   art: {
+    /* the Park's generic mark: just TB in a shield */
+    tb: (P, S, K) => `<path d="M100 28 L164 50 L158 118 C152 144 128 162 100 174 C72 162 48 144 42 118 L36 50 Z" fill="${P}" stroke="${K}" stroke-width="6" stroke-linejoin="round"/>
+      <path d="M100 42 L152 60 L147 116 C142 136 124 150 100 160 C76 150 58 136 53 116 L48 60 Z" fill="none" stroke="${S}" stroke-width="4" stroke-linejoin="round"/>
+      <text x="100" y="124" text-anchor="middle" font-family="Arial Black, Impact, sans-serif" font-weight="900" font-size="62" fill="${S}" stroke="${K}" stroke-width="3" paint-order="stroke">TB</text>`,
     hawk: (P, S, K) => `<path d="M48 120 C52 78 84 52 122 54 C146 55 162 66 170 80 L150 84 C158 90 160 96 158 104 L138 98 C132 116 116 130 96 136 L104 150 C86 150 66 142 56 132 Z" fill="${S}" stroke="${K}" stroke-width="5" stroke-linejoin="round"/>
       <path d="M150 84 C160 86 170 92 172 104 C164 100 156 100 150 104" fill="#f2c12e" stroke="${K}" stroke-width="4" stroke-linejoin="round"/>
       <path d="M86 70 C104 64 124 66 138 76 C122 76 106 78 92 86 Z" fill="${P}" stroke="${K}" stroke-width="4" stroke-linejoin="round"/>
@@ -29511,15 +29653,16 @@ const Account = {
    ============================================================================================= */
 
 /* ---------------- the place ---------------- */const PARK_FIELDS = {
-  1: { n: 1, name: '1v1 Field', x: -36, z: -76, L: 40, W: 22 },
-  2: { n: 2, name: '2v2 Field', x: 36, z: -76, L: 40, W: 22 },
+  // full-size fields, the same field the game is played on (end line to end line, sideline to sideline)
+  1: { n: 1, name: '1v1 Field', x: -60, z: -104, L: 120 * 0.9144, W: (160 / 3) * 0.9144 },
+  2: { n: 2, name: '2v2 Field', x: 60, z: -104, L: 120 * 0.9144, W: (160 / 3) * 0.9144 },
   5: { n: 5, name: 'Main Field', x: 0, z: 0, main: true },
 };
 const PARK_AREAS = [
   { id: 'gate', name: 'Park Gate', x: -110, z: 0, w: 18, d: 30 },
   { id: 'quests', name: 'Quest Board', x: -95, z: -20, w: 14, d: 12 },
-  { id: 'f1', name: '1v1 Field', x: -36, z: -76, w: 48, d: 34, field: 1 },
-  { id: 'f2', name: '2v2 Field', x: 36, z: -76, w: 48, d: 34, field: 2 },
+  { id: 'f1', name: '1v1 Field', x: -60, z: -104, w: 118, d: 62, field: 1 },
+  { id: 'f2', name: '2v2 Field', x: 60, z: -104, w: 118, d: 62, field: 2 },
   { id: 'f5', name: 'Main Field · 5v5', x: 0, z: 0, w: 134, d: 70, field: 5 },
   { id: 'train', name: 'Training Center', x: 0, z: 78, w: 124, d: 40 },
   { id: 'commons', name: 'The Commons', x: 106, z: 0, w: 36, d: 44 },
@@ -29527,8 +29670,11 @@ const PARK_AREAS = [
 ];
 // where things can be used: walk up and press E
 const PARK_POI = [
-  { id: 'q1', at: [-36, -58], label: 'Join the 1v1 queue', act: ['queue', 1] },
-  { id: 'q2', at: [36, -58], label: 'Join the 2v2 queue', act: ['queue', 2] },
+  { id: 'pick1', at: [-60, -75.6], label: 'Hop on a spot: pickup 1v1 on this field', act: ['pickup', 1] },
+  { id: 'pick2', at: [60, -75.6], label: 'Hop on a spot: pickup 2v2 on this field', act: ['pickup', 2] },
+  { id: 'pick5', at: [0, 28.6], label: 'Hop on a spot: pickup 5v5 on the main field', act: ['pickup', 5] },
+  { id: 'q1', at: [-76, -73], label: 'Join the 1v1 queue (Performance Center)', act: ['queue', 1] },
+  { id: 'q2', at: [44, -73], label: 'Join the 2v2 queue (Performance Center)', act: ['queue', 2] },
   { id: 'q5', at: [-72, -10], label: 'Join the 5v5 queue', act: ['queue', 5] },
   { id: 'board', at: [-96, -18], label: 'Read the quest board', act: ['panel', 'quests'] },
   { id: 'giverD', at: [-90, -11], label: 'Talk to Coach Ruiz (daily quests)', act: ['panel', 'quests', 'daily'] },
@@ -29552,6 +29698,11 @@ const PARK_CREWS = [
   { name: 'Hilltop', mascot: 'Rams', art: 'ram', abbr: 'HTR', colors: [0x1f6b3a, 0xd8a63c] },
   { name: 'Lakeshore', mascot: 'Storm', art: 'eagle', abbr: 'LKS', colors: [0x5b2a86, 0xd8a63c] },
   { name: 'Downtown', mascot: 'Bulls', art: 'bison', abbr: 'DTB', colors: [0xc0262d, 0x15171a] },
+];
+/* Park games aren't real teams: just Home and Away, each with the generic TB mark */
+const PARK_SIDES = [
+  { name: 'Home', mascot: '', art: 'tb', abbr: 'HOME', colors: [0x1b2c5e, 0xf2f2ee] },
+  { name: 'Away', mascot: '', art: 'tb', abbr: 'AWAY', colors: [0xc0262d, 0xf2f2ee] },
 ];
 /* the coaches who hand out the work: each his own look, his own voice */
 const PARK_COACHES = {
@@ -29691,6 +29842,32 @@ const ParkProg = {
     return r;
   },
   badge(id) { const D = this.D; if (D.badges.includes(id)) return false; D.badges.push(id); return true; },
+  /* star challenges: each week six college stars come to the Park, a receiver and a cornerback for each game
+     size. Beat him and you get his jersey (1v1 and 5v5) or a pile of extra XP (2v2). The star is the school's
+     own X receiver or left corner (a custom star exactly as you made him, look and number untouched). */
+  starWeek() {
+    const wk = parkWeek();
+    if (this._stars && this._stars.key === wk) return this._stars.list;
+    const T = parkPickN(COLLEGE_TEAMS.map((_, i) => i), 6, 's' + wk);
+    // a star receiver and a star cornerback for each game size
+    const list = [[1, 'WR', 'jersey'], [1, 'CB', 'jersey'], [2, 'WR', 'xp'], [2, 'CB', 'xp'], [5, 'WR', 'jersey'], [5, 'CB', 'jersey']].map(([mode, pos, reward], k) => {
+      const slot = pos === 'WR' ? 'X' : 'LCB';
+      const def = COLLEGE_TEAMS[T[k % T.length]], row = (College.lineup(def) || []).find(r => r.slot === slot) || {}, R0 = def.roster && def.roster[slot];
+      const num = R0 && R0.num != null ? R0.num : row.num != null ? row.num : 1 + (parkHash(def.abbr + wk) % 19);
+      const name = (R0 && R0.name) || row.name || 'The Star';
+      return { id: 's' + mode + pos, mode, pos, slot, reward, xp: reward === 'xp' ? 350 : 150, ti: T[k % T.length], name, last: name.split(' ').pop(), num, abbr: def.abbr, school: def.school || def.name };
+    });
+    this._stars = { key: wk, list };
+    return list;
+  },
+  starRec(id) { const D = this.D; if (!D.stars) D.stars = {}; const k = parkWeek(); let r = D.stars[id]; if (!r || r.key !== k) r = D.stars[id] = { key: k, done: false }; return r; },
+  giveJersey(S) {
+    const D = this.D; if (!D.jerseys) D.jerseys = [];
+    const id = `${S.abbr}#${S.num}|${S.name}`; if (D.jerseys.some(j => j.id === id)) return false;
+    const def = COLLEGE_TEAMS[S.ti];
+    D.jerseys.push({ id, name: S.name, num: S.num, abbr: S.abbr, school: S.school, color: def.jersey, numColor: def.num, trim: def.trim });
+    return true;
+  },
 };
 
 /* ---------------- matchmaking ----------------
@@ -29699,7 +29876,7 @@ const ParkProg = {
    "ask the server for a lobby", and a human joining later takes over a CPU's slot (replaceCpu). */
 const ParkMM = {
   state: null,   // { mode, type, phase: 'search' | 'found', t, lobby }
-  TYPES: { casual: { name: 'Casual', live: true }, ranked: { name: 'Ranked', live: false }, private: { name: 'Private match', live: false }, event: { name: 'Event', live: true } },
+  TYPES: { pickup: { name: 'Pickup', live: true }, casual: { name: 'Casual', live: true }, ranked: { name: 'Ranked', live: false }, private: { name: 'Private match', live: false }, event: { name: 'Event', live: true } },
   me() {
     const P = Road.data.p;
     return { id: 'me', kind: 'human', name: `${P.first} ${P.last}`, last: P.last, pos: P.pos, ovr: Road.ovr(), num: P.num };
@@ -29722,7 +29899,7 @@ const ParkMM = {
   },
   /* top the lobby up with CPU participants: your side from one crew, the other side from another */
   fill(L) {
-    const n = L.mode, me = L.sides[0][0], crews = PARK_CREWS.slice().sort(() => Math.random() - 0.5);
+    const n = L.mode, me = L.sides[0][0], crews = PARK_SIDES.slice();
     L.crews = [crews[0], crews[1]];
     const ovr0 = me.ovr;
     const posFor = (k) => n === 5 ? ['RB', 'WR', 'TE', 'LB', 'CB', 'S'][k % 6] : pick(['WR', 'CB', 'S', 'RB']);
@@ -29840,7 +30017,24 @@ const Park = {
     if (this.pools) this.pools.material.opacity = 0.42 * k;
     if (this.bulbs) this.bulbs.material.color.set(0xffd58a).multiplyScalar(0.45 + 0.55 * k);
   },
-  venue() {
+  /* the Harvest Showdown (November's event): the event game's field and grounds go full fall */
+  HARVEST_SVG: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="512" height="512">
+    <circle cx="120" cy="120" r="112" fill="#3a1a0a" stroke="#e3a628" stroke-width="8"/>
+    <g fill="#c8501c" stroke="#3a1a0a" stroke-width="3"><path d="M44 150 C30 120 46 92 70 98 C60 120 62 138 78 154 Z" fill="#e07a1f"/><path d="M196 150 C210 120 194 92 170 98 C180 120 178 138 162 154 Z" fill="#e3a628"/><path d="M60 92 C70 66 96 62 106 78 C90 84 80 96 76 112 Z" fill="#a8321e"/><path d="M180 92 C170 66 144 62 134 78 C150 84 160 96 164 112 Z" fill="#d8902a"/></g>
+    <path d="M120 66 C150 66 176 92 176 124 C176 156 150 176 120 176 C90 176 64 156 64 124 C64 92 90 66 120 66 Z" fill="#e07a1f" stroke="#3a1a0a" stroke-width="5"/>
+    <path d="M120 68 C108 90 106 156 120 174 M120 68 C132 90 134 156 120 174 M94 76 C82 100 82 150 98 168 M146 76 C158 100 158 150 142 168" fill="none" stroke="#a8461a" stroke-width="4"/>
+    <path d="M114 68 C112 54 118 44 130 40" fill="none" stroke="#5a7a2a" stroke-width="7" stroke-linecap="round"/>
+    <path d="M104 116 L136 116 M108 108 L108 124 M116 108 L116 124 M124 108 L124 124 M132 108 L132 124" stroke="#f4ead2" stroke-width="4" stroke-linecap="round"/>
+    <path id="hsArc" d="M40 120 A80 80 0 0 1 200 120" fill="none"/><text font-family="'Big Shoulders Display',Impact,sans-serif" font-weight="900" font-size="26" fill="#f4d68c" letter-spacing="3"><textPath href="#hsArc" startOffset="50%" text-anchor="middle">HARVEST</textPath></text>
+    <rect x="52" y="186" width="136" height="30" rx="6" fill="#a8461a" stroke="#e3a628" stroke-width="3"/><text x="120" y="208" text-anchor="middle" font-family="'Big Shoulders Display',Impact,sans-serif" font-weight="900" font-size="22" fill="#f4ead2" letter-spacing="2">SHOWDOWN</text></svg>`,
+  venue(theme) {
+    // queued games: the League Park Performance Center, an indoor college-style practice facility
+    if (theme === 'facility') return { facility: true, dome: true, name: 'League Park Performance Center', cap: 'Indoor', tier: 'small', seat: 0x8a9096, accent: 0xb3202a, ez: 'facility', ezText: '#d9dbdc', ezWords: ['LEAGUE', 'PARK'], logo: 7, rough: 0,
+      turfColor: 'indoor', turf: 'solid', fill: 0, homeShare: 0.5, band: 0, students: null, studentColors: [0xb3202a, 0xd9dbdc], towels: null, warm: false, railFans: false,
+      surround: { trees: 'oak', treeN: 40, hills: 'green', hillN: 4, buildings: 'brick', bN: 4 } };
+    if (theme === 'harvest') return { park: true, harvest: true, name: 'League Park', cap: 'Park', tier: 'small', seat: 0x7a5a3a, accent: 0xe07a1f, ez: 'harvest', ezText: '#f4d68c', ezWords: ['HARVEST', 'SHOWDOWN'], logo: 11, rough: 0.22,
+      turfColor: 'fall', midSvg: this.HARVEST_SVG, fill: 0.4, homeShare: 0.5, band: 0, students: null, studentColors: [0xa8461a, 0xe3a628], towels: null, warm: true, railFans: false,
+      surround: { trees: 'autumn', treeN: 200, hills: 'green', hillN: 10, buildings: 'brick', bN: 8 } };
     return { park: true, name: 'League Park', cap: 'Park', tier: 'small', seat: 0x8a9096, accent: 0xf2d21b, ez: 'green', ezText: '#f4f4ee', ezWords: ['LEAGUE', 'PARK'], logo: 7, rough: 0.12,
       fill: 0.32, homeShare: 0.5, band: 0, students: null, studentColors: [0x1b2c5e, 0xf2d21b], towels: null, warm: true, railFans: false,
       surround: { trees: 'oak', treeN: 170, hills: 'green', hillN: 10, buildings: 'brick', bN: 8 } };
@@ -29855,7 +30049,8 @@ const Park = {
   dressYou(p, outfit) {
     const W = this.wardrobe(), o = outfit || W.wear;
     p.outfitOv = o;
-    p.casualOv = o === 'skins' ? { shorts: W.skinsShorts } : o === 'shirt' ? { shirt: W.shirt, shorts: W.shorts, style: W.style } : null;
+    const J = W.jersey && ParkProg.D && (ParkProg.D.jerseys || []).find(j => j.id === W.jersey);
+    p.casualOv = o === 'skins' ? { shorts: W.skinsShorts } : o === 'shirt' ? (J ? { shirt: J.color, shorts: W.shorts, style: 'tee', num: J.num, numColor: J.numColor } : { shirt: W.shirt, shorts: W.shorts, style: W.style }) : null;
   },
   /* Game.cleanup calls this: the scene's own DOM and state go (a park game keeps inGame) */
   teardown() {
@@ -29951,46 +30146,177 @@ const Park = {
     });
   },
   areaFor(kind) {
-    if (kind === 'watch') { const f = PARK_FIELDS[pick([1, 2])]; return [f.x + rand(-16, 16), f.z + (Math.random() < 0.5 ? -1 : 1) * (f.W / 2 + rand(3, 5))]; }
+    if (kind === 'watch') { const f = PARK_FIELDS[pick([1, 2])]; return [f.x + pick([-1, 1]) * rand(14, 44), f.z + f.W / 2 + rand(3.5, 7)]; }
     if (kind === 'train') return [rand(-50, 50), rand(62, 92)];
     if (kind === 'chat') return [rand(94, 120), rand(-16, 16)];
     const A = pick(PARK_AREAS); return [A.x + rand(-A.w / 2, A.w / 2) * 0.8, A.z + rand(-A.d / 2, A.d / 2) * 0.8];
   },
-  /* ---------- CPU field games: a running score, CPU players acting out the snaps ---------- */
+  /* ---------- CPU field games: real games on the full fields ----------
+     Each snap: the offense lines up at the ball (quarterback in the gun, receiver split wide), the corner
+     across from him, a safety deep in 2v2. The receiver runs a real route, the corner runs with him, the
+     quarterback drops and throws a ball that flies to where the receiver is going: a catch and a run until
+     he's tackled, an incompletion, or a pick. Downs, scores and the rules are the Park's (1v1: from the 25,
+     four downs to score, six for a touchdown and a try, two for a pick; 2v2: from midfield, first downs,
+     seven for a touchdown). */
+  PARK_NPC_ROUTES: {
+    go: [[3, 0], [24, -1]], slant: [[2, 0], [9, 6]], out: [[6, 0], [6, -9]], hitch: [[6, 0], [5, 0.5]], curl: [[11, 0], [9, 1]],
+    post: [[10, 0], [24, 8]], corner: [[10, 0], [20, -8]], dig: [[11, 0], [12, 10]], comeback: [[13, 0], [10, -4]], fade: [[3, -1], [22, -3]],
+  },
   newFieldGame(n, initial) {
-    const F = PARK_FIELDS[n], crews = PARK_CREWS.slice().sort(() => Math.random() - 0.5);
-    const G = this.games[n] = { n, crews: [crews[0], crews[1]], score: [0, 0], t: initial ? rand(20, 120) : 0, len: rand(160, 240), state: 'live', snapT: initial ? 0 : 6, poss: 0, players: [], open: 0, losX: F.x, dir: 1 };
+    const F = PARK_FIELDS[n], crews = PARK_SIDES.slice();
+    const G = this.games[n] = { n, F, crews: [crews[0], crews[1]], score: [0, 0], t: initial ? rand(20, 120) : 0, len: rand(300, 420), state: 'live', poss: Math.random() < 0.5 ? 0 : 1, players: [], open: 0, phase: 'line', pt: 0 };
     // who plays: at the start, a fresh set; after that, CPU park players walking nearby step on (a few new arrivals if not)
     const pool = initial ? [] : this.npcs.filter(N => (N.kind === 'wander' || N.kind === 'watch') && !N.game).sort((a, b) => hdist(a.p.pos, new V3(F.x, 0, F.z)) - hdist(b.p.pos, new V3(F.x, 0, F.z)));
+    const join = (N, s, i) => { N.kind = 'game'; N.side = s; N.idx = i; N.game = G; N.wait = 0; N.target = null; N.goal = null; this.dressSide(N, s); G.players.push(N); };
     for (let s = 0; s < 2; s++) for (let i = 0; i < n; i++) {
       let N = pool.shift();
-      if (!N) N = this.addNpc(F.x + rand(-8, 8), F.z + (s ? -1 : 1) * rand(13, 16), { kind: 'game', crew: G.crews[s], role: s ? 'CB' : 'WR' });
-      N.kind = 'game'; N.side = s; N.idx = i; N.game = G; N.wait = 0; N.target = null; N.set = 6; N.route = { x: F.x, z: F.z }; G.players.push(N);
+      if (!N) N = this.addNpc(F.x + rand(-8, 8), F.z + F.W / 2 + rand(2, 5), { kind: 'game', crew: G.crews[s], role: i === 0 && n === 2 ? 'QB' : s ? 'CB' : 'WR' });
+      join(N, s, i);
     }
-    if (initial) G.score = [Math.floor(rand(0, 3)) * 7, Math.floor(rand(0, 3)) * 7];
+    // 1v1: a neutral quarterback throws for whoever has the ball
+    if (n === 1) { const Q = this.addNpc(F.x, F.z + F.W / 2 + 3, { kind: 'game', role: 'QB', name: 'AllTime QB' }); Q.side = -1; Q.game = G; Q.isQB = true; Q.p.outfitOv = 'shirt'; Q.p.casualOv = { shirt: 0x8a9096, shorts: 0x15171a, style: 'tee' }; Gfx.makeView(Q.p, Gear.resolve(this.crewLook(G.crews[0]), Q.p, false)); G.qb = Q; }
+    if (initial) G.score = n === 1 ? [pick([0, 6, 7, 8, 12]), pick([0, 2, 6, 7])] : [Math.floor(rand(0, 3)) * 7, Math.floor(rand(0, 3)) * 7];
+    this.fieldNewSeries(G, G.poss);
     return G;
+  },
+  /* home in navy shirts, away in red: you can tell the teams apart from across the Park */
+  dressSide(N, s) {
+    const p = N.p; if (p.coach) return;
+    p.outfitOv = 'shirt'; p.casualOv = { shirt: s ? 0xc0262d : 0x1b2c5e, shorts: s ? 0xf2f2ee : 0x15171a, style: 'tee' };
+    Gfx.makeView(p, Gear.resolve(this.crewLook(PARK_SIDES[s] || N.crew), p, false));
+  },
+  fieldNewSeries(G, poss) {
+    G.poss = poss; G.yard = G.n === 1 ? 75 : 50; G.down = 1; G.togo = G.n === 1 ? 100 - G.yard : 10;
+    G.phase = 'line'; G.pt = 0; G.wide = Math.random() < 0.5 ? -1 : 1;
+  },
+  fieldX(G, yd) { return G.F.x + (G.poss === 0 ? 1 : -1) * (yd - 50) * YD; },
+  fieldRoles(G) {
+    const O = G.players.filter(N => N.side === G.poss), D = G.players.filter(N => N.side === 1 - G.poss);
+    if (G.n === 1) return { qb: G.qb, wr: O[0], cb: D[0], s: null };
+    return { qb: O.find(N => N.idx === 0), wr: O.find(N => N.idx === 1), cb: D.find(N => N.idx === 1), s: D.find(N => N.idx === 0) };
+  },
+  fieldBall(G) {
+    if (!G.ball) { G.ball = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 8), new THREE.MeshStandardMaterial({ color: lin(0x6b3a1e), roughness: 0.6 })); G.ball.scale.set(1, 1, 1.6); Gfx.scene.add(G.ball); }
+    return G.ball;
   },
   stepFieldGames(dt) {
     for (const n of [1, 2]) {
       const G = this.games[n]; if (!G) continue;
-      const F = PARK_FIELDS[n];
-      if (G.state === 'open') { G.open -= dt; if (G.open <= 0) this.newFieldGame(n, false); continue; }
-      G.t += dt; G.snapT -= dt;
-      if (G.snapT <= 0) {
-        // a new snap: the offense lines up, the receivers run their routes, the defenders go with them
-        G.snapT = rand(5.5, 8); G.losX = F.x + (G.poss ? 1 : -1) * rand(0, 8);
-        G.dir = G.poss ? -1 : 1;
-        for (const N of G.players) { N.route = { x: clamp(G.losX + G.dir * rand(8, 15), F.x - F.L / 2 + 1, F.x + F.L / 2 - 1), z: F.z + rand(-F.W / 2 + 2, F.W / 2 - 2) }; N.set = 1.4; }
-        if (G.t > 6 && Math.random() < 0.3) { G.score[G.poss] += 7; G.scored = { side: G.poss, t: 2.5 }; this.cheer(F); G.poss = 1 - G.poss; }
-        else if (Math.random() < 0.25) G.poss = 1 - G.poss;
-      }
+      if (G.state === 'open') { G.open -= dt; if (G.ball) G.ball.visible = false; if (G.open <= 0 && !(this.pickup && this.pickup.n === n)) this.newFieldGame(n, false); continue; }
+      G.t += dt; G.pt += dt;
+      this.stepFieldGame(G, dt);
       if (G.scored) { G.scored.t -= dt; if (G.scored.t <= 0) G.scored = null; }
-      if (Math.max(...G.score) >= 21 || G.t > G.len) {
-        G.state = 'open'; G.open = rand(25, 40);
-        this.results.unshift({ n, crews: G.crews.map(c => c.name + ' ' + c.mascot), score: G.score.slice(), when: Date.now() });
-        this.results = this.results.slice(0, 8);
-        for (const N of G.players) { N.kind = 'wander'; N.target = null; N.game = null; N.wait = rand(1, 4); }
+      if (G.phase === 'line' && (Math.max(...G.score) >= 21 || G.t > G.len)) this.endFieldGame(G);
+    }
+  },
+  endFieldGame(G) {
+    const n = G.n;
+    G.state = 'open'; G.open = rand(25, 40);
+    this.results.unshift({ n, crews: G.crews.map(c => c.name), score: G.score.slice(), when: Date.now() });
+    this.results = this.results.slice(0, 8);
+    for (const N of G.players.concat(G.qb ? [G.qb] : [])) { N.kind = 'wander'; N.target = null; N.game = null; N.goal = null; N.wait = rand(1, 4); if (N.p.state === 'up' && Math.random() < 0.6) N.p.startAct(N.side === (G.score[0] > G.score[1] ? 0 : 1) ? 'celebrate' : 'clap', 1.6); }
+    if (G.ball) G.ball.visible = false;
+    if (this.pickup && this.pickup.n === n && this.pickup.waiting) this.pickupFill();
+  },
+  stepFieldGame(G, dt) {
+    const F = G.F, dir = G.poss === 0 ? 1 : -1, R = this.fieldRoles(G), b = this.fieldBall(G); b.visible = true;
+    const losX = this.fieldX(G, G.yard), wz = F.z + G.wide * 13.5, inward = -G.wide;
+    const at = (x, z) => new V3(clamp(x, F.x - F.L / 2 - 1, F.x + F.L / 2 + 1), 0, clamp(z, F.z - F.W / 2 + 1, F.z + F.W / 2 - 1));
+    const go = (N, v, pace, face) => { if (!N) return; N.goal = v; N.pace = pace; N.face = face || null; };
+    const hand = (N) => N && N.p.joints ? N.p.joints[J.RHA] : N ? N.p.pos.clone().setY(1.1) : new V3();
+    const fwd = new V3(dir, 0, 0), back = new V3(-dir, 0, 0);
+    if (G.phase === 'line') {
+      // everyone to his spot; the ball in the quarterback's hands
+      go(R.qb, at(losX - dir * 5 * YD, F.z), 0.4, fwd); go(R.wr, at(losX - dir * 0.6, wz), 0.45, fwd);
+      go(R.cb, at(losX + dir * 6 * YD, wz + inward * 0.8), 0.45, back); go(R.s, at(losX + dir * 12 * YD, F.z - G.wide * 2), 0.4, back);
+      b.position.copy(hand(R.qb));
+      // the snap, once they're set
+      const set = [R.qb, R.wr, R.cb, R.s].every(N => !N || hdist(N.p.pos, N.goal) < 1.2);
+      // anybody still jogging over after a long while just gets to his spot
+      if (!set && G.pt > 12) for (const N of [R.qb, R.wr, R.cb, R.s]) if (N && N.goal && N.p.state === 'up' && hdist(N.p.pos, N.goal) >= 1.2) N.p.place(N.goal.x, N.goal.z, Math.atan2(N.face ? N.face.z : 0, N.face ? N.face.x : 1));
+      if (set && G.pt > 2.2) {
+        const k = pick(Object.keys(this.PARK_NPC_ROUTES)), W0 = at(losX - dir * 0.6, wz);
+        G.route = this.PARK_NPC_ROUTES[k].map(([dn, lat]) => at(W0.x + dir * dn * YD, W0.z + inward * lat * YD)); G.wp = 0;
+        G.throwAt = rand(1.7, 2.6) + (k === 'go' || k === 'post' || k === 'corner' || k === 'fade' ? 0.5 : 0);
+        G.phase = 'live'; G.pt = 0; G.fly = null; G.carrier = null; G.result = null;
       }
+      return;
+    }
+    if (G.phase === 'live') {
+      // the route: waypoint to waypoint, then keep going the same way
+      if (R.wr && !G.carrier) {
+        const wp = G.route[Math.min(G.wp, G.route.length - 1)];
+        if (G.wp < G.route.length && hdist(R.wr.p.pos, wp) < 1.3) G.wp++;
+        let tgt = wp;
+        if (G.wp >= G.route.length) { const a = G.route[G.route.length - 2] || R.wr.p.pos, c = G.route[G.route.length - 1]; const d = new V3(c.x - a.x, 0, c.z - a.z).normalize(); tgt = at(c.x + d.x * 12, c.z + d.z * 12); }
+        go(R.wr, tgt, 0.92);
+      }
+      // coverage: the corner rides his hip a step behind, the safety stays over the top
+      if (R.cb && !G.carrier) go(R.cb, at(R.wr.p.pos.x + dir * 1.2, R.wr.p.pos.z + inward * 0.9), 0.86);
+      if (R.s && !G.carrier) go(R.s, at(Math.max(R.wr.p.pos.x * dir, losX * dir + 10 * YD) * dir + dir * 4, (R.wr.p.pos.z + F.z) / 2), 0.7);
+      if (!G.fly && !G.carrier) {
+        go(R.qb, at(losX - dir * 7.5 * YD, F.z), 0.35, fwd);
+        b.position.copy(hand(R.qb));
+        if (G.pt > G.throwAt && R.qb && R.qb.p.state === 'up') {
+          // the throw: led to where he's going
+          const T = rand(0.85, 1.25), lead = R.wr.p.vel.clone().multiplyScalar(T), pt = R.wr.p.pos.clone().add(lead);
+          const sep = hdist(R.wr.p.pos, R.cb.p.pos), roll = Math.random();
+          G.result = roll < (sep > 2 ? 0.8 : 0.55) ? 'catch' : roll < 0.93 ? 'inc' : 'int';
+          if (G.result === 'inc') pt.add(new V3(rand(-2, 2), 0, rand(-2, 2)));
+          R.qb.p.startAct('throw', 0.45);
+          G.fly = { t: -0.2, T, a: null, to: at(pt.x, pt.z).setY(1.2) };
+        }
+      }
+      if (G.fly) {
+        G.fly.t += dt;
+        if (G.fly.t < 0) b.position.copy(hand(R.qb));
+        else {
+          if (!G.fly.a) { G.fly.a = b.position.clone(); const C = G.result === 'int' ? R.cb : R.wr; if (G.result !== 'inc' && C) { C.p.startAct('catch', G.fly.T, { target: G.fly.to }); go(C, G.fly.to.clone().setY(0), 0.95); } }
+          const k = Math.min(1, G.fly.t / G.fly.T); b.position.lerpVectors(G.fly.a, G.fly.to, k); b.position.y += Math.sin(k * Math.PI) * 3; b.lookAt(G.fly.to);
+          if (k >= 1) {
+            G.fly = null;
+            if (G.result === 'inc') { G.phase = 'dead'; G.pt = 0; b.position.y = 0.12; if (R.cb && Math.random() < 0.4) R.cb.p.startAct('clap', 1); }
+            else { G.carrier = G.result === 'int' ? R.cb : R.wr; G.rac = G.result === 'int' ? rand(0.6, 1.4) : rand(0.4, 2.2); G.pt = 0; }
+          }
+        }
+      }
+      if (G.carrier) {
+        // after the catch: he turns up the field until somebody gets him
+        const C = G.carrier, cdir = G.result === 'int' ? -dir : dir;
+        go(C, at(C.p.pos.x + cdir * 10, C.p.pos.z + (F.z - C.p.pos.z) * 0.2), 0.95);
+        for (const N of [R.cb, R.wr, R.s]) if (N && N !== C) go(N, C.p.pos.clone(), 0.95);
+        b.position.copy(hand(C));
+        const yd = 50 + (C.p.pos.x - F.x) * cdir / YD, inEZ = G.result === 'int' ? false : yd >= 100;
+        if (inEZ || G.pt > G.rac) {
+          G.phase = 'dead'; G.pt = 0;
+          G.endYard = clamp(50 + (C.p.pos.x - F.x) * dir / YD, 1, 100);
+          if (inEZ) G.result = 'td';
+          for (const N of [R.cb, R.wr, R.s]) if (N && N !== C) go(N, N.p.pos.clone(), 0.2);
+          if (!inEZ && C.p.state === 'up') { const T0 = [R.cb, R.wr, R.s].filter(N => N && N !== C).sort((a, c) => hdist(a.p.pos, C.p.pos) - hdist(c.p.pos, C.p.pos))[0]; if (T0 && hdist(T0.p.pos, C.p.pos) < 3.5 && Math.random() < 0.5 && T0.p.startAct) T0.p.startAct('clap', 0.8); }
+        }
+      }
+      return;
+    }
+    if (G.phase === 'dead') {
+      for (const N of [R.qb, R.wr, R.cb, R.s]) if (N && N.goal) N.pace = 0.2;
+      if (G.carrier) b.position.copy(hand(G.carrier));
+      if (G.result === 'td' && G.pt < 0.1 && !G.scored) {
+        const pts = G.n === 1 ? 6 + (Math.random() < 0.6 ? (Math.random() < 0.75 ? 1 : 0) : (Math.random() < 0.45 ? 2 : 0)) : 7;
+        G.score[G.poss] += pts; G.scored = { side: G.poss, t: 3, what: 'TOUCHDOWN!' }; this.cheer(F); if (G.carrier) G.carrier.p.startAct('celebrate', 2);
+      }
+      if (G.pt < 2.4) return;
+      const next = () => { G.phase = 'line'; G.pt = 0; G.carrier = null; G.wide = Math.random() < 0.5 ? -1 : 1; };
+      if (G.result === 'td') { this.fieldNewSeries(G, 1 - G.poss); return; }
+      if (G.result === 'int') {
+        if (G.n === 1) { G.score[1 - G.poss] += 2; G.scored = { side: 1 - G.poss, t: 3, what: 'PICK! +2' }; this.cheer(F); this.fieldNewSeries(G, 1 - G.poss); return; }
+        const y = clamp(100 - G.endYard, 5, 95); this.fieldNewSeries(G, 1 - G.poss); G.yard = y; G.togo = Math.min(10, 100 - y); return;
+      }
+      const gain = G.result === 'catch' ? G.endYard - G.yard : 0;
+      G.yard = clamp(G.yard + gain, 1, 99);
+      if (G.n === 2 && gain >= G.togo) { G.down = 1; G.togo = Math.min(10, 100 - G.yard); }
+      else { G.down++; G.togo = G.n === 1 ? 100 - G.yard : G.togo - gain; }
+      if (G.down > 4) { G.scored = { side: 1 - G.poss, t: 2.2, what: 'TURNOVER ON DOWNS' }; this.fieldNewSeries(G, 1 - G.poss); return; }
+      next();
     }
   },
   /* the field scoreboards, the open/busy lights and the Park board */
@@ -30005,8 +30331,9 @@ const Park = {
       g.fillStyle = '#f2d21b'; g.font = font(800, 30); g.fillText(`${n}V${n} FIELD · ${G && G.state === 'live' ? 'CPU GAME' : 'OPEN'}`, W / 2, 30);
       if (G && G.state === 'live') {
         for (let s = 0; s < 2; s++) { const x = s ? W * 0.75 : W * 0.25; g.fillStyle = '#' + new THREE.Color(G.crews[s].colors[0]).getHexString(); g.fillRect(x - 100, 60, 200, 34); g.fillStyle = '#fff'; g.font = font(800, 26); g.fillText(G.crews[s].name.toUpperCase(), x, 78); g.font = font(900, 92); g.fillText(G.score[s], x, 150); }
-        g.fillStyle = '#97a39d'; g.font = font(700, 22); g.fillText(G.scored ? 'TOUCHDOWN!' : `FIRST TO 21 · ${Math.floor(G.t / 60)}:${String(Math.floor(G.t % 60)).padStart(2, '0')}`, W / 2, H - 24);
-      } else { g.fillStyle = '#4fd17a'; g.font = font(900, 70); g.fillText('OPEN', W / 2, H / 2 + 6); g.fillStyle = '#97a39d'; g.font = font(700, 22); g.fillText('QUEUE AT THE SIGN OR FROM THE MENU', W / 2, H - 24); }
+        const goal = G.yard + G.togo >= 100, own = G.yard <= 50 ? 'OWN ' + Math.round(G.yard) : 'OPP ' + Math.round(100 - G.yard);
+        g.fillStyle = G.scored ? '#f2d21b' : '#97a39d'; g.font = font(700, 22); g.fillText(G.scored ? G.scored.what : `${['', '1ST', '2ND', '3RD', '4TH'][clamp(G.down, 1, 4)]} & ${goal ? 'GOAL' : Math.max(1, Math.round(G.togo))} · BALL ON ${own} · ${G.crews[G.poss].name.toUpperCase()} BALL · FIRST TO 21`, W / 2, H - 24);
+      } else { g.fillStyle = '#4fd17a'; g.font = font(900, 70); g.fillText('OPEN', W / 2, H / 2 + 6); g.fillStyle = '#97a39d'; g.font = font(700, 22); g.fillText('STEP ON A PICKUP SPOT TO PLAY HERE', W / 2, H - 24); }
       t.needsUpdate = true;
       b.lamp.material.color.set(G && G.state === 'live' ? 0xff5a4f : 0x4fd17a);
     }
@@ -30021,7 +30348,7 @@ const Park = {
     for (const r of this.results.slice(0, 3)) { g.fillText(`${r.n}V${r.n}  ${r.crews[0]} ${r.score[0]} – ${r.score[1]} ${r.crews[1]}`, 18, y); y += 22; }
     t.needsUpdate = true;
   },
-  cheer(F) { for (const N of this.npcs) if (N.kind === 'watch' && hdist(N.p.pos, new V3(F.x, 0, F.z)) < 32 && Math.random() < 0.6 && !N.p.act) N.p.startAct('celebrate', 1.6); },
+  cheer(F) { for (const N of this.npcs) if (N.kind === 'watch' && hdist(N.p.pos, new V3(F.x, 0, F.z)) < 70 && Math.random() < 0.6 && !N.p.act) N.p.startAct('celebrate', 1.6); },
   /* ---------- every step ---------- */
   step(dt) {
     const w = Game.world, you = this.you, h = Game.humans[0]; if (!w || !you || !h) return;
@@ -30042,6 +30369,7 @@ const Park = {
     // the CPU park players
     for (const N of this.npcs) this.think(N, dt);
     this.stepFieldGames(dt);
+    this.stepPickup(dt);
     this.stepPairs(dt);
     const mm = ParkMM.step(dt); if (mm === 'found') this.matchFound();
     w.step(dt);
@@ -30083,22 +30411,21 @@ const Park = {
       return;
     }
     if (N.kind === 'catch') return;   // stepPairs runs them
+    if (N.kind === 'pickup') {
+      const sp = N.spot; if (!sp) { N.kind = 'wander'; return; }
+      const v = new V3(sp.x, 0, sp.z), d = hdist(p.pos, v);
+      AI.seek(p, v, d > 6 ? 0.6 : 0.3, 0.5);
+      if (d < 1.2) { p.faceDir = new V3(0, 0, Math.sign(sp.fz - sp.z) || -1); if (!p.act && Math.random() < 0.004) p.startAct(pick(['clap', 'stretch']), rand(1, 2), { v: (Math.random() * 4) | 0 }); }
+      return;
+    }
     if (N.kind === 'game') {
-      const G = N.game, F = PARK_FIELDS[G.n];
-      if (G.state !== 'live') { N.kind = 'wander'; return; }
-      const off = N.side === G.poss;
-      if (N.set > 0) {
-        N.set -= dt;
-        const lz = F.z + (N.idx - (G.n - 1) / 2) * 7;
-        AI.seek(p, new V3(G.losX + (off ? -G.dir * 1.2 : G.dir * 4), 0, lz), 0.5, 0.6);
-        p.faceDir = new V3(off ? G.dir : -G.dir, 0, 0);
-      } else if (off) AI.seek(p, new V3(N.route.x, 0, N.route.z), 0.85, 0.8);
-      else {
-        // the defender mirrors the receiver across from him
-        const R = G.players.find(q => q.side !== N.side && q.idx === N.idx);
-        if (R) AI.seek(p, new V3(R.p.pos.x + G.dir * 1.5, 0, R.p.pos.z), 0.8, 0.5);
-      }
-      if (G.scored && G.scored.side === N.side && !p.act && Math.random() < 0.02) p.startAct('celebrate', 1.4);
+      const G = N.game;
+      if (!G || G.state !== 'live') { N.kind = 'wander'; return; }
+      if (N.goal) {
+        AI.seek(p, N.goal, N.pace || 0.4, 0.6);
+        if (N.face && hdist(p.pos, N.goal) < 1.2) p.faceDir = N.face.clone();
+      } else p.desired.set(0, 0, 0);
+      if (G.scored && G.scored.side === N.side && !p.act && Math.random() < 0.01) p.startAct('celebrate', 1.4);
       return;
     }
     if (N.wait > 0) {
@@ -30152,6 +30479,7 @@ const Park = {
     Sfx.click();
     const [k, a, b] = P.act;
     if (k === 'queue') return this.openPanel('queue', a);
+    if (k === 'pickup') return this.startPickup(a);
     if (k === 'panel') { this.talkTo = P.id === 'giverD' ? 'Coach Ruiz' : P.id === 'giverW' ? 'Coach Banks' : P.id === 'trainer' ? 'Trainer Okafor' : null; return this.openPanel(a, b); }
     if (k === 'drill') return this.openPanel('drillIntro', a);
     if (k === 'locker') return this.openPanel('outfits');
@@ -30159,7 +30487,7 @@ const Park = {
   toLocker() { Road.save(); ParkMM.cancel(); Game.cleanup(); RoadUI.lockerFrom = 'park'; Custom.open('road'); },
   travel(id) {
     const A = PARK_AREAS.find(a => a.id === id) || PARK_AREAS[0];
-    const spot = { gate: [-104, 0], quests: [-88, 0], f1: [-36, -54], f2: [36, -54], f5: [-68, 0], train: [0, 54], commons: [99, 6], locker: [92, 20] }[A.id];
+    const spot = { gate: [-104, 0], quests: [-88, 0], f1: [-60, -70], f2: [60, -70], f5: [-68, 0], train: [0, 54], commons: [99, 6], locker: [92, 20] }[A.id];
     const y = this.you; y.place(spot[0], spot[1], Math.atan2(A.z - spot[1], A.x - spot[0])); y.vel.set(0, 0, 0);
     if (Game.world.ball.holder !== y && !this.drill) Game.world.setHolder(y, 'spawn');
     this.snapCam(); this.closePanel();
@@ -30265,14 +30593,14 @@ const Park = {
       return `<h3>Game queue</h3><div class="pk-modes">${card(1, 'One on one', P.pos === 'QB' ? 'You throw to an all-time receiver against one defender, then switch.' : 'You and an all-time QB against one defender, then switch.')}${card(2, 'Two on two', 'A quarterback and a receiver against a corner and a safety or blitzer. Pick your roles.')}${card(5, 'Five on five', 'Full squads on the main field: QB, center, back, two receivers.')}</div>
         <div class="pk-types">${types}</div>${typeNote}${sel === 2 ? (() => { const R = this.qRoles || this.defaultRoles(); const b = (k, v, t) => `<button class="pk-type ${R[k] === v ? 'on' : ''}" data-role="${k}:${v}">${t}</button>`; return `<div class="pk-roles"><span>Your offense</span>${b('off', 'QB', 'Quarterback')}${b('off', 'WR', 'Wide receiver')}<span>Your defense</span>${b('def', 'CB', 'Cornerback')}${b('def', 'S', 'Safety / blitzer')}<small>Your CPU teammate takes the other two.</small></div>`; })() : ''}
         <div class="pk-party"><h5>Party</h5><div class="pk-pm"><span class="pk-ovr sm">${Road.ovr()}</span><b>${esc(P.first)} ${esc(P.last)}</b><em>Leader</em></div><div class="pk-pm empty">Open slot · CPU fills it in the queue</div><button class="ghost" disabled>Invite a friend <em>coming soon</em></button></div>
-        <p class="pk-note">Park rules: every possession starts at midfield (the 40 in 5v5), touchdowns are worth 7, first to ${sel === 5 && tsel === 'event' ? 28 : 21} wins. ${sel === 1 ? 'The quarterback never runs past the line of scrimmage and has 4.5 seconds to throw.' : sel === 2 ? 'The quarterback stays behind the line for 3 seconds after the snap, then can scramble. The second defender plays safety or blitzes (B before the snap).' : 'The quarterback has a center to protect him.'} Games are played on the Park's main field.</p>
+        <p class="pk-note">Park rules: ${sel === 1 ? 'every possession starts at the 25 going in with four downs to score (no first downs). Touchdowns are worth 6, then go for 1 from the 5 or 2 from the 10. An interception is worth 2. You pick a route, not a play, and the corner just plays man.' : 'every possession starts at midfield (the 40 in 5v5), touchdowns are worth 7.'} First to ${sel === 5 && tsel === 'event' ? 28 : 21} wins. ${sel === 1 ? 'The quarterback never runs past the line of scrimmage and has 4.5 seconds to throw.' : sel === 2 ? 'The quarterback stays behind the line for 3 seconds after the snap, then can scramble. The second defender plays safety or blitzes (B before the snap).' : 'The quarterback has a center to protect him.'} Games are played on the Park's main field.</p>
         ${busy || `<button class="go" data-q ${canGo ? '' : 'disabled'}>${canGo ? `Find a ${sel}v${sel} game` : 'Available with online play'}</button>`}
         <p class="pk-note dim">Invitations: none · friends and invitations arrive with online play</p>`;
     }
     if (kind === 'found') {
       const L = ParkMM.state && ParkMM.state.lobby; if (!L) return '';
       const row = (p) => `<li class="${p.kind === 'human' ? 'me' : ''}"><span class="pk-ovr sm">${p.ovr}</span><b>${esc(p.name)}</b><span>${p.roles ? `${p.roles.off} · ${p.roles.def === 'S' ? 'S/BLITZ' : p.roles.def}` : p.pos}</span>${p.kind === 'cpu' ? '<em class="pk-cputag">CPU</em>' : '<em class="you">YOU</em>'}${p.captain ? '<em class="cap">CAPTAIN</em>' : ''}</li>`;
-      return `<h3 class="pk-found">MATCH FOUND · ${L.mode}v${L.mode}</h3><div class="pk-lobby"><div><h5>Your squad</h5><ul>${L.sides[0].map(row).join('')}</ul></div><div><h5>${esc(L.crews[1].name)} ${esc(L.crews[1].mascot)}</h5><ul>${L.sides[1].map(row).join('')}</ul></div></div>
+      return `<h3 class="pk-found">MATCH FOUND · ${L.mode}v${L.mode}</h3><div class="pk-lobby"><div><h5>Home</h5><ul>${L.sides[0].map(row).join('')}</ul></div><div><h5>${esc(L.crews[1].name)}</h5><ul>${L.sides[1].map(row).join('')}</ul></div></div>
         <p class="pk-note">Captains are each side's best overall. A coin flip decides the first possession.</p><div class="pk-row"><button class="ghost" data-cancel>Leave</button><button class="go" data-ready>Ready · <span id="pkCount">8</span></button></div>`;
     }
     if (kind === 'quests') {
@@ -30281,11 +30609,14 @@ const Park = {
       const list = (ids, scope) => ids.map(id => { const Q = PARK_Q[id], r = ParkProg.rec(id, scope); return `<li class="${r.done ? 'done' : ''}"><div><small>${{ daily: 'Daily assignment', weekly: 'Weekly assignment', once: 'Fundamentals', event: 'Event assignment' }[scope]}</small><b>${esc(Q.t)}</b><div class="pk-bar"><i style="width:${Math.round(100 * r.n / Q.n)}%"></i></div></div><em>${r.done ? '✓ Done' : `${r.n}/${Q.n}`}</em><span>+${Q.xp} XP</span></li>`; }).join('');
       const coach = tab === 'daily' ? 'Coach Ruiz' : tab === 'begin' ? 'Trainer Okafor' : 'Coach Banks';
       const t = (k, n) => `<button class="pk-type ${tab === k ? 'on' : ''}" data-qt="${k}">${n}</button>`;
-      const body = tab === 'daily' ? `<p class="pk-note">Coach Ruiz · new dailies every day</p><ul class="pk-quests">${list(L.daily, 'daily')}</ul>`
+      const SW = ParkProg.starWeek();
+      const stars = SW.map(S => { const r = ParkProg.starRec(S.id), def = COLLEGE_TEAMS[S.ti]; return `<li class="${r.done ? 'done' : ''}"><div><small>Star challenge · ${S.mode}v${S.mode}</small><b>${S.mode === 1 ? 'Beat' : `Win a ${S.mode}v${S.mode} against`} ${esc(S.name)} <span style="color:#${new THREE.Color(def.jersey).getHexString()}">■</span> #${S.num} ${S.pos}, ${esc(S.school)}${S.mode === 1 ? ' in a 1v1' : ''}</b></div><em>${r.done ? '✓ Done' : `<button class="ghost" data-star="${S.id}">Play</button>`}</em><span>${S.reward === 'jersey' ? 'His jersey + ' + S.xp + ' XP' : '+' + S.xp + ' XP'}</span></li>`; }).join('');
+      const body = tab === 'stars' ? `<p class="pk-note">Coach Banks · six star college players (a receiver and a cornerback for each game size) visit the Park each week. Beat them for their jerseys or extra XP. Play as many times as you like; each pays once a week.</p><ul class="pk-quests">${stars}</ul>`
+        : tab === 'daily' ? `<p class="pk-note">Coach Ruiz · new dailies every day</p><ul class="pk-quests">${list(L.daily, 'daily')}</ul>`
         : tab === 'weekly' ? `<p class="pk-note">Coach Banks · new weeklies every Monday</p><ul class="pk-quests">${list(L.weekly, 'weekly')}</ul>`
           : tab === 'begin' ? `<p class="pk-note">Beginner tutorials · once each</p><ul class="pk-quests">${list(L.begin, 'once')}</ul>`
             : `<div class="pk-event"><b>${esc(E.name)}</b><span>Limited-time event · ends ${E.ends.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span></div><ul class="pk-quests">${list(L.event, 'event')}</ul>`;
-      return `<h3>Assignments</h3>${this.coachHead(coach, tab)}<div class="pk-types">${t('daily', 'Daily')}${t('weekly', 'Weekly')}${t('begin', 'Beginner')}${t('event', 'Event')}</div>${body}<p class="pk-note">Rewards: XP toward Park levels. Levels unlock titles; every second level adds +1 to an attribute (at most 2 a week, 3 per attribute and 10 in all from the Park). XP after 1,200 in a day counts a quarter.</p>`;
+      return `<h3>Assignments</h3>${this.coachHead(coach, tab)}<div class="pk-types">${t('daily', 'Daily')}${t('weekly', 'Weekly')}${t('begin', 'Beginner')}${t('event', 'Event')}${t('stars', '★ Stars')}</div>${body}<p class="pk-note">Rewards: XP toward Park levels. Levels unlock titles; every second level adds +1 to an attribute (at most 2 a week, 3 per attribute and 10 in all from the Park). XP after 1,200 in a day counts a quarter.</p>`;
     }
     if (kind === 'training') {
       const dr = Object.entries(PARK_DRILLS).map(([k, X]) => { const B = D.drills[k]; return `<button class="pk-drill" data-drill="${k}"><b>${X.name}</b><span>${X.blurb}</span><em>${B ? `Best: ${k === 'route' ? B.best.toFixed(2) + ' s' : B.best + ' ' + X.unit}${B.medal ? ` · ${B.medal.toUpperCase()}` : ''}` : 'Not tried yet'}</em></button>`; }).join('');
@@ -30329,7 +30660,8 @@ const Park = {
         <h5>Wear in the Park</h5><div class="pk-types">${wear('pads', 'Full pads')}${wear('shirt', 'Regular clothes')}${wear('skins', 'Skins')}</div>
         <h5>Full pads</h5><p class="pk-note">Helmet, uniform, cleats and accessories: your Road to the League gear.</p><button class="ghost" data-fullpads>Open the full-pads locker</button>
         <h5>Regular clothes</h5><div class="pk-types"><button class="pk-type ${W.style !== 'tank' ? 'on' : ''}" data-style="tee">T-shirt</button><button class="pk-type ${W.style === 'tank' ? 'on' : ''}" data-style="tank">Tank top</button></div><small class="pk-lbl">Shirt</small>${sw('shirt', W.shirt)}<small class="pk-lbl">Shorts</small>${sw('shorts', W.shorts)}
-        <h5>Skins</h5><small class="pk-lbl">Shorts</small>${sw('skinsShorts', W.skinsShorts)}`;
+        <h5>Skins</h5><small class="pk-lbl">Shorts</small>${sw('skinsShorts', W.skinsShorts)}
+        <h5>Star jerseys</h5>${(ParkProg.D.jerseys || []).length ? `<p class="pk-note">Worn as your regular clothes.</p><div class="pk-types"><button class="pk-type ${!W.jersey ? 'on' : ''}" data-jersey="">My own shirt</button>${ParkProg.D.jerseys.map(j => `<button class="pk-type ${W.jersey === j.id ? 'on' : ''}" data-jersey="${esc(j.id)}"><span style="color:#${new THREE.Color(j.color).getHexString()}">■</span> ${esc(j.name)} #${j.num} · ${esc(j.abbr)}</button>`).join('')}</div>` : '<p class="pk-note">Beat star college players in ★ Star challenges (Quest board) to win their jerseys.</p>'}`;
     }
     if (kind === 'drillDone') return arg;
     return '';
@@ -30339,6 +30671,7 @@ const Park = {
     el.querySelectorAll('[data-role]').forEach(b => b.onclick = () => { Sfx.click(); const [k, v] = b.dataset.role.split(':'); this.qRoles = { ...(this.qRoles || this.defaultRoles()), [k]: v }; this.openPanel('queue', 2); });
     el.querySelectorAll('[data-type]').forEach(b => b.onclick = () => { Sfx.click(); this.qType = b.dataset.type; if (this.qType === 'event') this.qSel = 5; this.openPanel('queue', this.qSel); });
     el.querySelectorAll('[data-qt]').forEach(b => b.onclick = () => { Sfx.click(); this.openPanel('quests', b.dataset.qt); });
+    el.querySelectorAll('[data-star]').forEach(b => b.onclick = () => { Sfx.click(); this.playStar(b.dataset.star); });
     const q = el.querySelector('[data-q]'); if (q) q.onclick = () => { if (!ParkMM.start(this.qSel || 2, this.qType || 'casual')) return; Sfx.click(); this.toast(`Queued for ${this.qSel}v${this.qSel}. Explore while the CPU slots fill.`); this.closePanel(); this.updateHud(); };
     el.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => { ParkMM.cancel(); clearInterval(this.cdT); this.toast('Left the queue'); this.closePanel(); this.updateHud(); });
     const rd = el.querySelector('[data-ready]'); if (rd) rd.onclick = () => this.launch();
@@ -30349,15 +30682,16 @@ const Park = {
     const redress = (preview) => { Road.save(); if (this.you) { this.dressYou(this.you, preview); const L = Gear.defaults(Road.gearTeam(), 'home'); L.players = { [this.you.slot]: Road.personalGear() }; Gfx.makeView(this.you, Gear.resolve(L, this.you, true)); } };
     el.querySelectorAll('[data-wear]').forEach(b => b.onclick = () => { Sfx.click(); this.wardrobe().wear = b.dataset.wear; redress(); this.openPanel('outfits'); });
     el.querySelectorAll('[data-style]').forEach(b => b.onclick = () => { Sfx.click(); this.wardrobe().style = b.dataset.style; redress('shirt'); this.openPanel('outfits'); });
+    el.querySelectorAll('[data-jersey]').forEach(b => b.onclick = () => { Sfx.click(); const W = this.wardrobe(); W.jersey = b.dataset.jersey || null; redress('shirt'); this.openPanel('outfits'); });
     el.querySelectorAll('[data-sw]').forEach(b => b.onclick = () => { Sfx.click(); const [k, c] = b.dataset.sw.split(':'); this.wardrobe()[k] = +c; redress(k === 'skinsShorts' ? 'skins' : 'shirt'); this.openPanel('outfits'); });
     const fp = el.querySelector('[data-fullpads]'); if (fp) fp.onclick = () => { Sfx.click(); this.toLocker(); };
     const ti = el.querySelector('#pkTitle'); if (ti) ti.onchange = () => { ParkProg.D.title = +ti.value; Road.save(); this.updateHud(); };
   },
   mapSvg() {
-    const sx = (x) => (x + 135) * 1.6, sz = (z) => (z + 105) * 1.6, y = this.you;
-    const rect = (x, z, w, d, c, t) => `<rect x="${sx(x - w / 2)}" y="${sz(z - d / 2)}" width="${w * 1.6}" height="${d * 1.6}" rx="3" fill="${c}"/>${t ? `<text x="${sx(x)}" y="${sz(z) + 4}" text-anchor="middle">${t}</text>` : ''}`;
+    const sx = (x) => (x + 135) * 1.6, sz = (z) => (z + 137) * 1.36, y = this.you;
+    const rect = (x, z, w, d, c, t) => `<rect x="${sx(x - w / 2)}" y="${sz(z - d / 2)}" width="${w * 1.6}" height="${d * 1.36}" rx="3" fill="${c}"/>${t ? `<text x="${sx(x)}" y="${sz(z) + 4}" text-anchor="middle">${t}</text>` : ''}`;
     return `<svg viewBox="0 0 432 336" role="img" aria-label="Map of League Park"><rect width="432" height="336" fill="#24401f"/>
-      ${rect(0, 0, 120, 54, '#3a7a31', 'MAIN FIELD 5v5')}${rect(-36, -76, 40, 22, '#3a7a31', '1v1')}${rect(36, -76, 40, 22, '#3a7a31', '2v2')}${rect(0, 78, 120, 36, '#56664a', 'TRAINING CENTER')}${rect(106, 0, 34, 42, '#6b5b48', 'COMMONS')}${rect(-100, 0, 24, 40, '#5a5f63', 'GATE')}${rect(-95, -20, 10, 8, '#d8a63c', '')}${rect(94, 30, 10, 8, '#2f6fd6', '')}
+      ${rect(0, 0, 120, 54, '#3a7a31', 'MAIN FIELD 5v5')}${rect(-60, -104, 110, 49, '#3a7a31', '1v1 FIELD')}${rect(60, -104, 110, 49, '#3a7a31', '2v2 FIELD')}${rect(0, 78, 120, 36, '#56664a', 'TRAINING CENTER')}${rect(106, 0, 34, 42, '#6b5b48', 'COMMONS')}${rect(-100, 0, 24, 40, '#5a5f63', 'GATE')}${rect(-95, -20, 10, 8, '#d8a63c', '')}${rect(94, 30, 10, 8, '#2f6fd6', '')}
       <text x="${sx(-95)}" y="${sz(-27)}" text-anchor="middle">QUESTS</text><text x="${sx(94)}" y="${sz(38)}" text-anchor="middle">LOCKER</text>
       <circle cx="${sx(y.pos.x)}" cy="${sz(y.pos.z)}" r="6" fill="#f2d21b" stroke="#111" stroke-width="2"/></svg>`;
   },
@@ -30381,17 +30715,16 @@ const Park = {
   launch(lobby) {
     clearInterval(this.cdT);
     const L = lobby || (ParkMM.state && ParkMM.state.lobby); if (!L) return;
+    if (this.pickup) this.cancelPickup(true);
     ParkMM.state = null;
     const n = L.mode, P = Road.data.p, S = ParkMM.slots(n);
     const sideA = ParkMM.seat(n, L.sides[0]), sideB = ParkMM.seat(n, L.sides[1]);
     const me = L.sides[0].find(p => p.kind === 'human'), mine = sideA.map.get(me);
     // the two teams: your squad in your colors, their crew in theirs (a clash: another crew)
     const myT = Road.gearTeam();
-    let crew = L.crews[1];
-    const close = (a, b) => { const A = new THREE.Color(a), B = new THREE.Color(b); return Math.abs(A.r - B.r) + Math.abs(A.g - B.g) + Math.abs(A.b - B.b) < 0.45; };
-    if (close(crew.colors[0], myT.jersey)) crew = PARK_CREWS.find(c => !close(c.colors[0], myT.jersey)) || crew;
-    const defA = Road.hsDef(`${P.last}'s`, ['Squad', myT.art || 'eagle'], [myT.jersey, myT.trim], 72, 'YOU'); defA.name = `${P.last}'s Squad`;
-    const defB = Road.hsDef(crew.name, [crew.mascot, crew.art], crew.colors, 72, crew.abbr);
+    const [home, away] = PARK_SIDES;
+    const defA = Road.hsDef(home.name, ['', home.art], home.colors, 72, home.abbr); defA.name = defA.school = home.name; defA.mascot = '';
+    const defB = Road.hsDef(away.name, ['', away.art], away.colors, 72, away.abbr); defB.name = defB.school = away.name; defB.mascot = '';
     const LA = Gear.defaults(defA, 'home'); LA.acc.variety = true; LA.players = {}; for (const s of [mine.off, mine.def]) LA.players[s] = Road.personalGear(); LA.pants.length = Road.data.gear.pants.length || 'short';
     const LB = Gear.contrastFor(defB, LA);
     const names = {};
@@ -30399,10 +30732,23 @@ const Park = {
       for (const [p, s] of seat.map) if (p.kind === 'cpu') { names[`${t}:${s.off}`] = { name: p.last, num: p.num }; names[`${t}:${s.def}`] = { name: p.last, num: p.num }; }
       for (const s of seat.neutral) names[`${t}:${s}`] = { name: s === 'QB' ? 'AllTimeQB' : 'AllTime', num: s === 'QB' ? 1 : 0 };
     }
+    // full pads: everyone suits up in his own school's football uniform (you in yours)
+    const schools = {}, col = !!Road.data.col;
+    const schoolFor = () => {
+      if (col && typeof COLLEGE_TEAMS !== 'undefined') return pick(COLLEGE_TEAMS);
+      const H = pick(RD_HIGHSCHOOLS), nm = H.name.replace(/\s+High( School)?$/i, '');
+      return Road.hsDef(nm, H.mascot, H.colors, 70, nm.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase());
+    };
+    for (const [t, seat] of [[0, sideA], [1, sideB]]) for (const [p, s] of seat.map) {
+      const def = p.kind === 'human' ? myT : (p.school || (p.school = schoolFor()));
+      schools[`${t}:${s.off}`] = def; schools[`${t}:${s.def}`] = def;
+    }
+    let parkStar = null;
+    if (L.star) { const sp = L.sides[1].find(p => p.star), st = sp && sideB.map.get(sp); if (st) parkStar = { team: 1, off: st.off, def: st.def, ti: L.star.ti, name: L.star.name, slot: L.star.slot || 'X' }; }
     const event = L.type === 'event';
-    const o = { mode: 'park', humans: [{ team: 0, dev: Game.devs.kb1, label: 'P1' }], qLen: n === 5 ? 2.5 : n === 2 ? 2 : 1.5, difficulty: P.diff || 'pro', weather: 'clear', night: this.todLook(),
-      teamDefs: [defA, defB], looks: [LA, LB], home: 0, venue: this.venue(), parkNames: names,
-      park: { n, off: S.off, def: S.def, start: n < 5 ? 50 : 40, target: event ? 28 : 21, qbClock: n === 1 ? 4.5 : 0, noScramble: n === 1, qbHold: n === 2 ? 3 : 0, you: mine,
+    const o = { mode: 'park', parkSchools: schools, parkStar, humans: [{ team: 0, dev: Game.devs.kb1, label: 'P1' }], qLen: n === 5 ? 2.5 : n === 2 ? 2 : 1.5, difficulty: P.diff || 'pro', weather: 'clear', night: this.todLook(),
+      teamDefs: [defA, defB], looks: [LA, LB], home: 0, venue: this.venue(event ? (ParkProg.event().name === 'Harvest Showdown' ? 'harvest' : null) : L.type === 'pickup' ? null : 'facility'), parkNames: names,
+      park: { n, off: S.off, def: S.def, start: n === 1 ? 75 : n < 5 ? 50 : 40, target: event ? 28 : 21, qbClock: n === 1 ? 4.5 : 0, noScramble: n === 1, qbHold: n === 2 ? 3 : 0, you: mine,
         mateNames: Object.fromEntries([...sideA.map].filter(([p]) => p.kind === 'cpu').map(([p, s]) => [s.off + '|' + s.def, p.last])) },
       career: { team: 0, pos: P.pos, unit: RD_POS[P.pos].unit, week: 1, ovr: 0.5, share: 1, callOvr: Road.ovr() } };
     this.inGame = { lobby: L, mode: n, type: L.type, mine, stats: this.blankStats() };
@@ -30454,13 +30800,15 @@ const Park = {
     const row = (p) => `<li><span class="pk-ovr sm">${p.ovr}</span><b>${esc(p.name)}</b><em>${p.roles ? `${p.roles.off} · ${p.roles.def === 'S' ? 'S/BLITZ' : p.roles.def}` : p.pos}</em>${p.kind === 'cpu' ? '<i class="pk-cputag">CPU</i>' : '<i class="you">YOU</i>'}${p.captain ? '<i class="cap">C</i>' : ''}</li>`;
     el.innerHTML = `<div class="pk-lineup" style="--ca:${col(A.jersey)}"><h4>${esc(A.name)}</h4><ul>${L.sides[0].map(row).join('')}</ul></div><div class="pk-vs"><b>VS</b><span>${L.mode}v${L.mode} · first to ${o.park.target}</span><span>${{ svs: 'Shirts vs Skins', pads: 'Full Pads', skins: 'Skins', shirt: 'Shirts' }[res]}</span></div><div class="pk-lineup r" style="--ca:${col(B.jersey)}"><h4>${esc(B.name)}</h4><ul>${L.sides[1].map(row).join('')}</ul></div>`;
     document.body.appendChild(el);
-    setTimeout(() => el.classList.add('out'), 3800); setTimeout(() => el.remove(), 4400);
+    setTimeout(() => el.classList.add('out'), 2200); setTimeout(() => el.remove(), 2800);
   },
   defaultRoles() { const pos = Road.data ? Road.data.p.pos : 'WR'; return { off: pos === 'QB' ? 'QB' : 'WR', def: pos === 'S' || pos === 'LB' ? 'S' : 'CB' }; },
   /* in a park game: your roles, the defense's call, the quarterback's three seconds (called every frame) */
   matchHud(m) {
     let el = document.getElementById('pkMatch');
-    if (!m || !m.o.park || Game.mode !== 'park') { if (el) el.remove(); return; }
+    if (!m || !m.o.park || Game.mode !== 'park') { if (el) el.remove(); ParkFx.clear(); return; }
+    ParkFx.update(m);
+    if (!this._entKey) { this._entKey = true; addEventListener('keydown', (e) => { const M = Game.match; if (M && M.phase === 'entrance' && M.ent && ['Space', 'Enter', 'KeyE'].includes(e.code)) M.ent.skip = true; }); }
     if (!el) { el = document.createElement('div'); el.id = 'pkMatch'; el.className = 'pk-mhud'; document.body.appendChild(el); }
     const P = m.o.park, play = m.play, w = Game.world; if (!play || !m.parkYou) return;
     const onO = play.off === 0, you = onO ? m.parkYou.off : m.parkYou.def;
@@ -30483,6 +30831,85 @@ const Park = {
       else if (P.noScramble) html += `<span class="pk-qbt"><i style="width:${P.qbClock ? Math.max(0, (1 - play.t / P.qbClock) * 100) : 100}%"></i>QB stays behind the line${P.qbClock ? ` · ${Math.max(0, P.qbClock - play.t).toFixed(1)}` : ''}</span>`;
     }
     if (el._h !== html) { el.innerHTML = html; el._h = html; }
+  },
+  /* ---------- pickup games: step on a spot by a field and play right there ----------
+     Every field has a painted spot for each player (home navy, away red). Hop on one and CPU park players walk
+     over and take the others; when everybody's on a spot the game starts on that field. If a CPU game is
+     going, you're up next. */
+  pickupSpots() {
+    const out = {};
+    for (const n of [1, 2, 5]) {
+      const F = PARK_FIELDS[n], z = n === 5 ? HALF_W + 4 : F.z + F.W / 2 + 3.5, cx = n === 5 ? 0 : F.x, L = [];
+      for (let side = 0; side < 2; side++) for (let i = 0; i < n; i++) L.push({ n, side, i, x: cx + (side ? 1 : -1) * (2.2 + i * 2.6), z, fz: n === 5 ? 0 : F.z });
+      out[n] = L;
+    }
+    return out;
+  },
+  startPickup(n) {
+    if (this.pickup) { if (this.pickup.n === n) return this.toast('You\'re on a spot. Players are on their way.'); this.cancelPickup(true); }
+    ParkMM.cancel();
+    const sp = this.pickupSpots()[n], mine = sp[0], y = this.you;
+    y.place(mine.x, mine.z, Math.atan2(mine.fz - mine.z, 0)); y.vel.set(0, 0, 0);
+    this.pickup = { n, spots: sp, mine, npcs: [], t: 0, waiting: false };
+    const G = this.games && this.games[n];
+    if (n !== 5 && G && G.state === 'live') { this.pickup.waiting = true; this.toast(`A CPU game is on the ${n}v${n} field. You've got next: stay by your spot.`); }
+    else this.pickupFill();
+    this.updateHud();
+  },
+  pickupFill() {
+    const P = this.pickup; if (!P) return;
+    P.waiting = false; P.t = 0;
+    const F = PARK_FIELDS[P.n], c = new V3(P.mine.x, 0, P.mine.z);
+    const pool = this.npcs.filter(N => ['wander', 'watch', 'train', 'chat'].includes(N.kind) && !N.game && !N.isQB && !N.p.coach && N.p.state === 'up').sort((a, b) => hdist(a.p.pos, c) - hdist(b.p.pos, c));
+    for (const sp of P.spots) {
+      if (sp === P.mine) continue;
+      let N = pool.shift();
+      if (!N || hdist(N.p.pos, c) > 90) N = this.addNpc(sp.x + rand(-14, 14), sp.z + rand(6, 14), { kind: 'pickup' });
+      N.kind = 'pickup'; N.spot = sp; N.target = null; N.wait = 0; this.dressSide(N, sp.side); P.npcs.push(N);
+    }
+    this.toast(`Players are heading to the ${F.name.toLowerCase()} spots`);
+  },
+  cancelPickup(quiet) {
+    const P = this.pickup; if (!P) return;
+    for (const N of P.npcs) { if (N.kind === 'pickup') { N.kind = 'wander'; N.spot = null; N.target = null; N.wait = rand(0.5, 2); } }
+    this.pickup = null;
+    if (!quiet) this.toast('You left the pickup spot');
+    this.updateHud();
+  },
+  stepPickup(dt) {
+    const P = this.pickup; if (!P || !this.you) return;
+    if (hdist(this.you.pos, new V3(P.mine.x, 0, P.mine.z)) > 10) return this.cancelPickup();
+    if (P.waiting) return;
+    P.t += dt;
+    const ready = P.npcs.every(N => hdist(N.p.pos, new V3(N.spot.x, 0, N.spot.z)) < 1.6);
+    if ((ready && P.t > 1.2) || P.t > 16) this.launchPickup();
+  },
+  launchPickup() {
+    const P = this.pickup; if (!P) return;
+    const n = P.n, L = { mode: n, type: 'pickup', field: n, sides: [[ParkMM.me()], []] };
+    P.npcs.forEach((N, k) => {
+      const pos = n === 5 ? (['RB', 'WR', 'TE', 'LB', 'CB', 'S', 'WR', 'QB'].includes(N.pos) ? N.pos : 'WR') : pick(['WR', 'CB', 'S', 'RB']);
+      L.sides[N.spot.side].push({ id: 'pk' + k, kind: 'cpu', name: N.name, last: N.p.name, pos, ovr: N.ovr, num: N.p.num, crew: PARK_SIDES[N.spot.side] });
+    });
+    if (n === 5) for (const [si, S] of L.sides.entries()) if (!S.some(q => q.pos === 'QB')) { const q = S.find(x => x.kind === 'cpu'); if (q && !(si === 0 && L.sides[0][0].pos === 'QB')) q.pos = 'QB'; }
+    this.pickup = null;
+    ParkMM.fill(L);
+    this.launch(L);
+  },
+  /* a star challenge: a normal lobby with the star college player on the other side */
+  playStar(id) {
+    const S = ParkProg.starWeek().find(x => x.id === id); if (!S) return;
+    const mode = S.mode;
+    ParkMM.cancel(); clearInterval(this.cdT);
+    const L = { mode, type: 'casual', star: S, sides: [[ParkMM.me()], []] }; ParkMM.fill(L);
+    const B = L.sides[1], i = Math.max(0, B.findIndex(p => p.pos !== 'QB' && (!p.roles || p.roles.off !== 'QB')));
+    const old = B.splice(i, 1)[0];
+    const star = { id: 'star', kind: 'cpu', star: true, name: S.name, last: S.last, pos: S.pos || 'WR', ovr: 93, num: S.num, crew: old.crew, school: COLLEGE_TEAMS[S.ti] };
+    if (old.roles) star.roles = { off: 'WR', def: S.pos === 'CB' ? 'CB' : old.roles.def === 'S' ? 'S' : 'CB' };
+    const qi = B.findIndex(p => p.pos === 'QB'); B.splice(qi >= 0 ? qi + 1 : 0, 0, star);
+    this.closePanel();
+    this.toast(`${S.name} (#${S.num}, ${S.school}) is waiting on the ${mode === 5 ? 'main field' : mode + 'v' + mode + ' field'}`);
+    this.launch(L);
   },
   requeue() {
     const I = this.lastLobby; if (!I) return this.start();
@@ -30511,7 +30938,7 @@ const Park = {
     D.stats.mode[n][win ? 0 : 1]++;
     D.stats.td += S.td; D.stats.rec += S.catch; D.stats.comp += S.comp; D.stats.tkl += S.tackle; D.stats.pbu += S.pbu; D.stats.ints += S.ints;
     const L = I.lobby;
-    D.recent.unshift({ mode: n, win, score: m.score.slice(), opp: `${L.crews[1].name} ${L.crews[1].mascot}`, mates: L.sides[0].filter(p => p.kind === 'cpu').map(p => p.name), opps: L.sides[1].map(p => p.name), when: Date.now() });
+    D.recent.unshift({ mode: n, win, score: m.score.slice(), opp: `${L.crews[1].name}`, mates: L.sides[0].filter(p => p.kind === 'cpu').map(p => p.name), opps: L.sides[1].map(p => p.name), when: Date.now() });
     D.recent = D.recent.slice(0, 12);
     const newB = [];
     if (ParkProg.badge('first')) newB.push('First Game');
@@ -30523,7 +30950,19 @@ const Park = {
     // match XP: playing, winning and what you did, capped per game (performance matters, farming doesn't)
     const perf = Math.min(90, S.td * 12 + S.catch * 3 + S.comp * 3 + S.tackle * 4 + (S.pbu + S.ints) * 6);
     const xp0 = 35 + (win ? 30 : 0) + perf;
-    const R = ParkProg.addXP(xp0 + Q.xpQuests);
+    // a star challenge: his jersey or the bonus XP, once a week
+    let starXP = 0; I.starNote = '';
+    if (L.star) {
+      const S = L.star, r = ParkProg.starRec(S.id);
+      if (win && !r.done) {
+        r.done = true; starXP = S.xp;
+        if (S.reward === 'jersey') { if (ParkProg.giveJersey(S)) I.starNote = `You won ${S.name}'s #${S.num} ${S.school} jersey (+${S.xp} XP). Wear it from the Locker room.`; else { starXP += 200; I.starNote = `You already own ${S.name}'s jersey, so it's +${starXP} XP instead.`; } }
+        else I.starNote = `You beat ${S.name}: +${S.xp} bonus XP.`;
+      } else if (win) I.starNote = `You beat ${S.name} again. This week's reward is already yours.`;
+      else I.starNote = `${S.name} got you this time. Run it back any time this week.`;
+    }
+    I.starXP = starXP;
+    const R = ParkProg.addXP(xp0 + Q.xpQuests + starXP);
     Road.save();
     const ups = R.ups.map(u => `<li>Park level ${u.lvl}${u.title ? ` · new title: <b>${esc(u.title)}</b>` : ''}${u.attr ? ` · <b>+1 ${RD_ATTR[u.attr]}</b>` : ''}${u.capNote ? ` · ${esc(u.capNote)}` : ''}</li>`).join('');
     // the final whistle: the winners celebrate on the field for a moment before the results come up
@@ -30541,9 +30980,10 @@ const Park = {
     this._celebDone = false;
     const ups = R.ups.map(u => `<li>Park level ${u.lvl}${u.title ? ` · new title: <b>${esc(u.title)}</b>` : ''}${u.attr ? ` · <b>+1 ${RD_ATTR[u.attr]}</b>` : ''}${u.capNote ? ` · ${esc(u.capNote)}` : ''}</li>`).join('');
     const ov = $('ovEnd');
-    ov.innerHTML = `<div class="sheet pk-res"><span class="pk-cpu">CPU PREVIEW MODE</span><h2>${win ? 'WIN' : 'LOSS'} · ${m.score[0]}–${m.score[1]}</h2><p class="sub">${n}v${n} ${ParkMM.TYPES[I.type].name} vs the ${esc(L.crews[1].name)} ${esc(L.crews[1].mascot)} (CPU)</p>
+    ov.innerHTML = `<div class="sheet pk-res"><span class="pk-cpu">CPU PREVIEW MODE</span><h2>${win ? 'WIN' : 'LOSS'} · ${m.score[0]}–${m.score[1]}</h2><p class="sub">${n}v${n} ${ParkMM.TYPES[I.type].name} vs ${esc(L.crews[1].name)} (CPU)</p>
       <div class="pk-stats"><span><b>${S.td}</b>TD</span><span><b>${S.catch}</b>Catches</span><span><b>${S.comp}</b>Completions</span><span><b>${S.tackle}</b>Tackles</span><span><b>${S.pbu + S.ints}</b>PBU + INT</span></div>
-      <p><b>+${R.xp} XP</b> (game ${xp0}${Q.xpQuests ? `, quests ${Q.xpQuests}` : ''})${R.capped ? ' · past today\'s full-XP mark: extra XP counts a quarter' : ''}</p>
+      ${I.starNote ? `<p class="pk-event"><b>★ Star challenge</b><span>${esc(I.starNote)}</span></p>` : ''}
+      <p><b>+${R.xp} XP</b> (game ${xp0}${Q.xpQuests ? `, quests ${Q.xpQuests}` : ''}${I.starXP ? `, star ${I.starXP}` : ''})${R.capped ? ' · past today\'s full-XP mark: extra XP counts a quarter' : ''}</p>
       ${Q.quests.length ? `<ul class="pk-list">${Q.quests.map(q => `<li>Quest complete: <b>${esc(q.t)}</b> · ${q.xp} XP</li>`).join('')}</ul>` : ''}${ups ? `<ul class="pk-list">${ups}</ul>` : ''}${newB.length ? `<p>New badge${newB.length > 1 ? 's' : ''}: ${newB.map(esc).join(', ')}</p>` : ''}
       <div class="row2"><button class="go" id="pkBack">Back to the Park</button><button class="ghost" id="pkAgain">Queue again (${n}v${n})</button></div></div>`;
     ov.hidden = false;
@@ -30751,18 +31191,81 @@ Object.assign(Gfx, {
     });
     return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: t, roughness: 0.6, side: THREE.DoubleSide, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.18 }));
   },
-  parkFieldTex(n) {
-    return this.parkCanvas(1024, 564, (g, W, H) => {
-      const L = 40, sx = W / L;
-      for (let i = 0; i < 10; i++) { g.fillStyle = i % 2 ? '#3a7a31' : '#347230'; g.fillRect(i * W / 10, 0, W / 10 + 1, H); }
-      const ez = 4.5 * sx;
-      g.fillStyle = '#1b2c5e'; g.fillRect(0, 0, ez, H); g.fillStyle = '#7a1f2a'; g.fillRect(W - ez, 0, ez, H);
-      g.strokeStyle = '#f4f4ee'; g.lineWidth = 8; g.strokeRect(4, 4, W - 8, H - 8);
-      g.lineWidth = 5; for (let x = ez; x <= W - ez + 1; x += (W - 2 * ez) / 6) { g.beginPath(); g.moveTo(x, 4); g.lineTo(x, H - 4); g.stroke(); }
-      g.fillStyle = '#f4f4ee'; g.font = '900 64px "Big Shoulders Display", Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      for (const [x, r] of [[ez / 2, -Math.PI / 2], [W - ez / 2, Math.PI / 2]]) { g.save(); g.translate(x, H / 2); g.rotate(r); g.fillText(`${n}V${n}`, 0, 0); g.restore(); }
-      g.globalAlpha = 0.35; g.font = '900 54px "Big Shoulders Display", Impact, sans-serif'; g.fillText('LEAGUE PARK', W / 2, H / 2); g.globalAlpha = 1;
+  /* the small fields are painted exactly like the field the game is played on (the Park's own venue paint) */
+  parkFieldTex(n, V) {
+    const T = Road.hsDef('Home', ['', 'tb'], [0x1b2c5e, 0xf2f2ee], 70, 'HOME'); T.name = T.school = 'Home';
+    return this.fieldTexture(T, false, V);
+  },
+  /* the League Park Performance Center: an indoor practice facility for queued Park games. A full field of turf
+     wall to wall, red end zones, light gray walls with a red band, championship banners and letter panels high
+     on the walls, a video board, a big garage door open to daylight, benches, pad stacks and a lift on the
+     sideline, steel trusses and rows of lights in the roof. The walls and roof face inward only (one-sided), so
+     a camera outside the building looks straight in. */
+  facilityHall(V, VB) {
+    const { g, M } = VB, XH = 74, ZH = 48, H = 24;
+    const one = (w, h, map, o = {}) => new THREE.Mesh(new THREE.PlaneGeometry(w, h), map ? new THREE.MeshStandardMaterial(Object.assign({ map, roughness: 0.85 }, o)) : M(o.color || 0xd9dbdc, o));
+    // turf all the way to the walls
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(XH * 2, ZH * 2), new THREE.MeshLambertMaterial({ color: lin(0x2f7d2c) })); floor.rotation.x = -Math.PI / 2; floor.position.y = -0.012; floor.receiveShadow = true; g.add(floor);
+    // the walls: light gray block, a red band, white upper wall, a strip of clerestory windows, steel columns
+    const wallTex = (len, banners, letters) => this.parkCanvas(2048, Math.round(2048 * H / len), (x, W, Hh) => {
+      const py = (m) => Hh - m / H * Hh, px = (m) => m / len * W;
+      x.fillStyle = '#eef0f1'; x.fillRect(0, 0, W, Hh);
+      x.fillStyle = '#c9ccce'; x.fillRect(0, py(6), W, Hh - py(6));
+      x.fillStyle = '#b3202a'; x.fillRect(0, py(6.6), W, py(6) - py(6.6));
+      x.fillStyle = '#2a2d31'; x.fillRect(0, py(6.75), W, py(6.6) - py(6.75));
+      x.fillStyle = '#dfe8f2'; for (let m = 2; m < len - 2; m += 6) { x.fillRect(px(m), py(22.6), px(4.6), py(20.4) - py(22.6)); }
+      x.fillStyle = '#9aa0a6'; for (let m = 0; m <= len; m += 12) x.fillRect(px(m) - 6, 0, 12, Hh);
+      x.fillStyle = '#2a2d31'; for (let m = 6; m < len; m += 24) x.fillRect(px(m), py(2.6), px(1.1), py(0) - py(2.6));   // doors
+      // championship-style banners (the Park's own)
+      x.textAlign = 'center'; x.textBaseline = 'middle';
+      (banners || []).forEach(([m, t1, t2]) => {
+        const bx = px(m), bw = px(9), top = py(19), bh = py(11) - py(19);
+        x.fillStyle = '#b3202a'; x.fillRect(bx - bw / 2, top, bw, bh); x.strokeStyle = '#eef0f1'; x.lineWidth = 4; x.strokeRect(bx - bw / 2 + 8, top + 8, bw - 16, bh - 16);
+        x.fillStyle = '#f4f4f0'; x.font = `900 ${Math.round(bh * 0.2)}px "Big Shoulders Display", Impact, sans-serif`; x.fillText(t1, bx, top + bh * 0.36, bw - 20);
+        x.font = `900 ${Math.round(bh * 0.34)}px "Big Shoulders Display", Impact, sans-serif`; x.fillText(t2, bx, top + bh * 0.7, bw - 20);
+      });
+      if (letters) {   // big letter panels high on the end wall
+        const n = letters.length, pw = px(7.4), gap = px(1.2), x0 = W / 2 - (n * pw + (n - 1) * gap) / 2, top = py(19), ph = py(14.5) - py(19);
+        for (let i = 0; i < n; i++) { const lx = x0 + i * (pw + gap); x.fillStyle = '#b3202a'; x.fillRect(lx, top, pw, ph); x.fillStyle = '#f4f4f0'; x.font = `900 ${Math.round(ph * 0.8)}px "Big Shoulders Display", Impact, sans-serif`; x.fillText(letters[i], lx + pw / 2, top + ph * 0.54); }
+      }
     });
+    const longB = () => [12, 30, 48, 96, 114, 132].map((m, i) => [m, 'LEAGUE PARK', ['1V1', '2V2', '5V5', 'TOUGH', 'EARN IT', 'BE GREAT'][i]]);
+    const wN = one(XH * 2, H, wallTex(XH * 2, longB())); wN.position.set(0, H / 2, -ZH); g.add(wN);
+    const wS = one(XH * 2, H, wallTex(XH * 2, null)); wS.position.set(0, H / 2, ZH); wS.rotation.y = Math.PI; g.add(wS);
+    const wE = one(ZH * 2, H, wallTex(ZH * 2, null, ['L', 'E', 'A', 'G', 'U', 'E'])); wE.position.set(XH, H / 2, 0); wE.rotation.y = -Math.PI / 2; g.add(wE);
+    const wW = one(ZH * 2, H, wallTex(ZH * 2, null, ['P', 'A', 'R', 'K'])); wW.position.set(-XH, H / 2, 0); wW.rotation.y = Math.PI / 2; g.add(wW);
+    // the roof: underside, steel trusses and rows of lights
+    const roof = new THREE.Mesh(new THREE.PlaneGeometry(XH * 2, ZH * 2), new THREE.MeshBasicMaterial({ color: 0x9fa4a9 })); roof.rotation.x = Math.PI / 2; roof.position.y = H; g.add(roof);
+    const tr = []; for (let x = -XH + 6; x < XH; x += 12) tr.push([0.5, 1.6, ZH * 2, x, H - 1, 0], [0.3, 0.3, ZH * 2, x, H - 2.6, 0]);
+    for (let z = -ZH + 8; z < ZH; z += 16) tr.push([XH * 2, 0.4, 0.4, 0, H - 1.6, z]);
+    const truss = new THREE.Mesh(this.boxes(tr), M(0x9aa0a6, { metalness: 0.5, roughness: 0.5 })); g.add(truss);
+    const lights = []; for (let x = -XH + 12; x < XH - 6; x += 12) for (let z = -ZH + 8; z <= ZH - 8; z += 8) lights.push([4.2, 0.2, 1.4, x, H - 2.9, z]);
+    const lamps = new THREE.Mesh(this.boxes(lights), new THREE.MeshBasicMaterial({ color: 0xfaf8f0, toneMapped: false })); g.add(lamps);
+    // a camera up over the building (the overhead and blimp views) sees straight in: the roof steel hides itself
+    floor.onBeforeRender = (r, sc, cam) => { const v = cam.position.y < H - 1.5; truss.material.visible = v; lamps.material.visible = v; };
+    // the video board on the west wall, a scoreboard on the east
+    const vb = one(18, 8, this.parkCanvas(1024, 456, (x, W, Hh) => { x.fillStyle = '#0d1117'; x.fillRect(0, 0, W, Hh); const gr = x.createLinearGradient(0, 0, W, Hh); gr.addColorStop(0, '#b3202a'); gr.addColorStop(1, '#5a0d14'); x.fillStyle = gr; x.fillRect(16, 16, W - 32, Hh - 32); x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '900 150px "Big Shoulders Display", Impact, sans-serif'; x.fillText('EARN IT.', W / 2, Hh / 2 - 30); x.font = '700 46px "Barlow Semi Condensed", sans-serif'; x.fillText('LEAGUE PARK PERFORMANCE CENTER', W / 2, Hh - 80); }), { emissive: 0xffffff, emissiveIntensity: 0.55 });
+    vb.material.emissiveMap = vb.material.map; vb.position.set(-XH + 0.3, 9.5, -18); vb.rotation.y = Math.PI / 2; g.add(vb);
+    const sbd = this.parkSign('HOME   0  ·  AWAY   0', 'LEAGUE PARK', 10, 3.4, '#0d1117', '#f2d21b'); sbd.position.set(XH - 0.3, 9, 0); sbd.rotation.y = -Math.PI / 2; g.add(sbd);
+    // the garage door on the north wall, rolled up, daylight and grass outside
+    { const dx = -46, dw = 11, dh = 8;
+      const sky = one(dw, dh, this.parkCanvas(512, 372, (x, W, Hh) => { const gr = x.createLinearGradient(0, 0, 0, Hh); gr.addColorStop(0, '#d6e8f7'); gr.addColorStop(0.55, '#eef6fb'); gr.addColorStop(0.56, '#6f9a4a'); gr.addColorStop(1, '#4f7a34'); x.fillStyle = gr; x.fillRect(0, 0, W, Hh); x.fillStyle = '#bdb6a6'; x.fillRect(0, Hh * 0.78, W, Hh * 0.22); }), { emissive: 0xffffff, emissiveIntensity: 0.9 });
+      sky.material.emissiveMap = sky.material.map; sky.position.set(dx, dh / 2, -ZH + 0.05); g.add(sky);
+      g.add(new THREE.Mesh(this.boxes([[dw + 1.2, 0.6, 0.5, dx, dh + 0.3, -ZH + 0.25], [0.6, dh, 0.5, dx - dw / 2 - 0.3, dh / 2, -ZH + 0.25], [0.6, dh, 0.5, dx + dw / 2 + 0.3, dh / 2, -ZH + 0.25], [dw + 1, 1.2, 1.2, dx, dh + 1.2, -ZH + 0.8]]), M(0x6a6f75, { metalness: 0.4 })));
+      // daylight spilling in across the turf
+      const spill = new THREE.Mesh(new THREE.PlaneGeometry(dw * 1.2, 18), new THREE.MeshBasicMaterial({ color: 0xfff3d6, transparent: true, opacity: 0.16, depthWrite: false, toneMapped: false })); spill.rotation.x = -Math.PI / 2; spill.position.set(dx + 4, 0.03, -ZH + 9); g.add(spill);
+      // a utility cart parked by the door
+      const cart = new THREE.Group(); cart.add(new THREE.Mesh(this.boxes([[2.6, 0.7, 1.4, 0, 0.75, 0], [1, 0.9, 1.3, 0.7, 1.5, 0], [0.08, 1.2, 0.08, -0.9, 1.7, -0.6], [0.08, 1.2, 0.08, -0.9, 1.7, 0.6], [2.6, 0.08, 1.5, -0.2, 2.3, 0]]), M(0x3f6f3a)));
+      for (const [x0, z0] of [[-0.9, -0.75], [0.9, -0.75], [-0.9, 0.75], [0.9, 0.75]]) { const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.25, 12), M(0x15171a)); wh.rotation.x = Math.PI / 2; wh.position.set(x0, 0.3, z0); cart.add(wh); }
+      cart.position.set(dx + 9, 0, -ZH + 4); cart.rotation.y = 0.3; g.add(cart); }
+    // the sidelines: benches along the north wall, red pad stacks, coolers, a scissor lift by the west wall
+    const bn = []; for (let x = -10; x <= 40; x += 6) bn.push([5, 0.12, 0.7, x, 0.55, -ZH + 3], [5, 0.5, 0.1, x, 0.85, -ZH + 2.65], [0.12, 0.55, 0.6, x - 2.3, 0.28, -ZH + 3], [0.12, 0.55, 0.6, x + 2.3, 0.28, -ZH + 3]);
+    g.add(new THREE.Mesh(this.boxes(bn), M(0x2a2d31)));
+    const pads = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.55, 0.55, 2.2, 16), M(0xb3202a), 6), mm = new THREE.Matrix4();
+    [[52, -ZH + 3], [53.3, -ZH + 3], [52.6, -ZH + 4.2], [-58, ZH - 3], [-56.8, ZH - 3], [64, 30]].forEach(([x0, z0], i) => { mm.makeTranslation(x0, 1.1, z0); pads.setMatrixAt(i, mm); }); g.add(pads);
+    g.add(new THREE.Mesh(this.boxes([[0.9, 1.0, 0.9, 58, 0.5, 34], [0.9, 1.0, 0.9, 59.2, 0.5, 34], [1.2, 0.8, 0.8, 60.6, 0.4, 34]]), M(0xf08a24)));
+    { const lx = -XH + 8, lz = -ZH + 9; const lift = []; lift.push([2.4, 0.6, 1.2, lx, 0.5, lz]); for (let k = 0; k < 6; k++) lift.push([2.2, 0.12, 0.12, lx, 1.2 + k * 1.4, lz - 0.5], [2.2, 0.12, 0.12, lx, 1.2 + k * 1.4, lz + 0.5]); lift.push([2.4, 0.12, 1.3, lx, 9.8, lz], [2.4, 0.9, 0.06, lx, 10.3, lz - 0.62]);
+      g.add(new THREE.Mesh(this.boxes(lift), M(0x2a2d31, { metalness: 0.3 }))); }
   },
   /* a scoreboard whose canvas Park redraws while its field game runs */
   parkBoard(w, h) {
@@ -30771,14 +31274,84 @@ Object.assign(Gfx, {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.DoubleSide }));
     m.userData = { c, t }; return m;
   },
+  /* the Harvest Showdown's grounds: hay bales and pumpkins along the field, cornstalks at the corners, a scarecrow,
+     the event banner, drifts of fallen leaves and more coming down */
+  harvestDecor(V, VB) {
+    const { g, M } = VB, mm = new THREE.Matrix4(), q = new QUAT(), c = new THREE.Color();
+    // hay bales: round bales lying on their sides, with square bales stacked as seats
+    const hay = M(0xd6b25e, { roughness: 1 }), bales = [];
+    for (const sz of [-1, 1]) for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) bales.push([sx * (34 + i * 6.5) + rand(-0.6, 0.6), sz * (HALF_W + 6.5 + rand(-0.4, 0.4))]);
+    for (const sx of [-1, 1]) for (const z of [-16, -6, 6, 16]) bales.push([sx * 68, z + rand(-1, 1)]);
+    const round = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.9, 0.9, 1.3, 18), hay, bales.length);
+    bales.forEach(([x, z], i) => { q.setFromEuler(new THREE.Euler(Math.PI / 2, rand(0, 3), 0)); mm.compose(new V3(x, 0.9, z), q, new V3(1, 1, 1)); round.setMatrixAt(i, mm); });
+    g.add(round);
+    const sq = []; for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const x = sx * 61, z = sz * (HALF_W + 5); sq.push([2.2, 0.8, 1.1, x, 0.4, z], [2.2, 0.8, 1.1, x + 2.3, 0.4, z], [2.2, 0.8, 1.1, x + 1.15, 1.2, z]); }
+    g.add(new THREE.Mesh(this.boxes(sq), M(0xc9a454, { roughness: 1 })));
+    // pumpkins in clusters by the bales and at the ends, a few big ones
+    const pk = []; for (const [x, z] of bales) for (let k = 0; k < 3; k++) pk.push([x + rand(-2, 2), z + rand(-1.6, 1.6), rand(0.32, 0.55)]);
+    for (const sx of [-1, 1]) for (let k = 0; k < 18; k++) pk.push([sx * rand(64, 72), rand(-24, 24), rand(0.3, 0.75)]);
+    const pg = new THREE.SphereGeometry(1, 16, 10), PP = pg.attributes.position;
+    for (let i = 0; i < PP.count; i++) { const x = PP.getX(i), z = PP.getZ(i), a = Math.atan2(z, x), k = 1 + 0.07 * Math.cos(a * 8); PP.setX(i, x * k); PP.setZ(i, z * k); PP.setY(i, PP.getY(i) * 0.72); }
+    pg.computeVertexNormals();
+    const pum = new THREE.InstancedMesh(pg, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55 }), pk.length);
+    const stem = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.08, 0.12, 0.3, 6), M(0x4a5a22), pk.length);
+    pk.forEach(([x, z, r], i) => { mm.compose(new V3(x, r * 0.68, z), q.identity(), new V3(r, r, r)); pum.setMatrixAt(i, mm); pum.setColorAt(i, c.set(pick([0xe0701c, 0xd8621a, 0xe88a24, 0xc85a18, 0xf0e2c0])).convertSRGBToLinear()); mm.compose(new V3(x, r * 1.38 + 0.1, z), q.identity(), new V3(r * 1.2, r * 1.2, r * 1.2)); stem.setMatrixAt(i, mm); });
+    g.add(pum); g.add(stem);
+    // cornstalk bundles (shocks) at the four corners of the field and by the goalposts
+    const shocks = []; for (const sx of [-1, 1]) for (const sz of [-1, 1]) shocks.push([sx * 64, sz * (HALF_W + 4)], [sx * 72, sz * 9]);
+    const stalk = new THREE.InstancedMesh(new THREE.ConeGeometry(0.06, 2.8, 4), M(0xc8a860, { roughness: 1 }), shocks.length * 16); let si = 0;
+    for (const [x, z] of shocks) for (let k = 0; k < 16; k++) { const a = (k / 16) * 6.283, lean = 0.12 + Math.random() * 0.1; q.setFromEuler(new THREE.Euler(Math.sin(a) * lean, 0, -Math.cos(a) * lean)); mm.compose(new V3(x + Math.cos(a) * 0.35, 1.4, z + Math.sin(a) * 0.35), q, new V3(1, rand(0.9, 1.15), 1)); stalk.setMatrixAt(si++, mm); }
+    g.add(stalk);
+    const ties = []; for (const [x, z] of shocks) ties.push([0.9, 0.12, 0.9, x, 1.2, z]); g.add(new THREE.Mesh(this.boxes(ties), M(0x8a3a1a)));
+    // a scarecrow keeping watch over the west end, in a plaid shirt and straw hat
+    { const sc = new THREE.Group(), x = -76, z = 20;
+      sc.add(new THREE.Mesh(this.boxes([[0.15, 3.4, 0.15, 0, 1.7, 0], [2.4, 0.12, 0.12, 0, 2.5, 0]]), M(0x6a4a2a)));
+      const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.0, 0.4), M(0xa8321e)); shirt.position.y = 2.2; sc.add(shirt);
+      const arms = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.28, 0.3), M(0xa8321e)); arms.position.y = 2.5; sc.add(arms);
+      const pants = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.9, 0.36), M(0x2f4f7a)); pants.position.y = 1.3; sc.add(pants);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 10), M(0xe0c890)); head.position.y = 3.0; sc.add(head);
+      const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.05, 18), M(0xd6b25e)); brim.position.y = 3.24; sc.add(brim);
+      const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.32, 14), M(0xd6b25e)); crown.position.y = 3.42; sc.add(crown);
+      for (const sd of [-1, 1]) { const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.32, 5), hay); tuft.position.set(sd * 1.15, 2.5, 0); tuft.rotation.z = sd * Math.PI / 2; sc.add(tuft); }
+      sc.position.set(x, 0, z); sc.rotation.y = Math.PI / 2; g.add(sc); }
+    // the event banner behind the east end zone, on two poles
+    { const s = this.parkSign('HARVEST SHOWDOWN', 'NOVEMBER EVENT · 5V5 TO 28', 16, 2.8, '#7a2e10', '#f4d68c'); s.position.set(76, 4.6, 0); s.rotation.y = -Math.PI / 2; g.add(s);
+      g.add(new THREE.Mesh(this.boxes([[0.3, 6.2, 0.3, 76.2, 3.1, -8.2], [0.3, 6.2, 0.3, 76.2, 3.1, 8.2]]), M(0x3a2a1a))); }
+    // fallen leaves on the grass all over the grounds (thicker under the trees round the edge)
+    const lc = document.createElement('canvas'); lc.width = lc.height = 64; { const x = lc.getContext('2d'); x.fillStyle = '#fff'; x.beginPath(); x.moveTo(6, 32); x.quadraticCurveTo(32, 6, 58, 32); x.quadraticCurveTo(32, 58, 6, 32); x.fill(); x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 3; x.beginPath(); x.moveTo(10, 32); x.lineTo(54, 32); x.stroke(); }
+    const leafTex = new THREE.CanvasTexture(lc);
+    const LC = [0xc8501c, 0xe07a1f, 0xe3a628, 0xa8321e, 0x8a4a1c, 0xd8902a];
+    const NL = 5000, lg = new THREE.PlaneGeometry(0.5, 0.5); lg.rotateX(-Math.PI / 2);
+    const leaves = new THREE.InstancedMesh(lg, new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.5, roughness: 0.9, side: THREE.DoubleSide }), NL);
+    for (let i = 0; i < NL; i++) {
+      let x, z; do { x = rand(-140, 140); z = rand(-70, 125); } while (Math.abs(x) < 61 && Math.abs(z) < HALF_W + 1.5);
+      q.setFromEuler(new THREE.Euler(0, rand(0, 6.28), 0)); const s = rand(0.6, 1.3); mm.compose(new V3(x, 0.045 + Math.random() * 0.01, z), q, new V3(s, 1, s)); leaves.setMatrixAt(i, mm);
+      leaves.setColorAt(i, c.set(pick(LC)).convertSRGBToLinear());
+    }
+    g.add(leaves);
+    // leaves coming down: drifting and spinning on the breeze around the main field
+    const NF = 700, fp = new Float32Array(NF * 3), fc = new Float32Array(NF * 3), seed = new Float32Array(NF);
+    for (let i = 0; i < NF; i++) { fp[i * 3] = rand(-80, 80); fp[i * 3 + 1] = rand(0, 22); fp[i * 3 + 2] = rand(-50, 50); c.set(pick(LC)); fc[i * 3] = c.r; fc[i * 3 + 1] = c.g; fc[i * 3 + 2] = c.b; seed[i] = Math.random() * 100; }
+    const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(fp, 3)); fg.setAttribute('color', new THREE.BufferAttribute(fc, 3));
+    const fall = new THREE.Points(fg, new THREE.PointsMaterial({ size: 0.42, map: leafTex, vertexColors: true, alphaTest: 0.5, transparent: false }));
+    fall.frustumCulled = false; let last = performance.now();
+    fall.onBeforeRender = () => {
+      const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000); last = now; const t = now / 1000, P = fg.attributes.position.array;
+      for (let i = 0; i < NF; i++) { const k = i * 3, sd = seed[i]; P[k] += (1.1 + Math.sin(t * 0.7 + sd) * 0.9) * dt; P[k + 1] -= (0.7 + 0.3 * Math.sin(sd)) * dt; P[k + 2] += Math.sin(t * 1.3 + sd * 2) * 0.8 * dt;
+        if (P[k + 1] < 0.05) { P[k] = rand(-80, 80); P[k + 1] = rand(16, 24); P[k + 2] = rand(-50, 50); } else if (P[k] > 85) P[k] = -85; }
+      fg.attributes.position.needsUpdate = true;
+    };
+    g.add(fall);
+  },
   parkGrounds(V, VB) {
     const { g, seats, tags, M } = VB;
+    if (V.harvest) this.harvestDecor(V, VB);
     const solids = Park.SOLIDS = [], mm = new THREE.Matrix4();
     const flat = (w, d, x, z, mat, y = 0.03, ry = 0) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat); m.rotation.x = -Math.PI / 2; m.rotation.z = ry; m.position.set(x, y, z); g.add(m); return m; };
     const path = M(0xb9b3a7, { roughness: 1 }), asphalt = M(0x3c3f44, { roughness: 1 }), wood = M(0x7a5a3a), steel = M(0x8a9096, { metalness: 0.6, roughness: 0.35 }), dark = M(0x1d2127);
     // walkways: a loop round the main field and spokes out to every area
     flat(250, 5, 0, -46, path); flat(250, 5, 0, 46, path); flat(5, 92, -78, 0, path); flat(5, 92, 78, 0, path);
-    flat(5, 24, -36, -58, path, 0.031); flat(5, 24, 36, -58, path, 0.031); flat(5, 14, 0, 54, path, 0.031);
+    flat(5, 26, -60, -61, path, 0.031); flat(5, 26, 60, -61, path, 0.031); flat(5, 14, 0, 54, path, 0.031);
     flat(34, 6, -95, 0, path, 0.031); flat(26, 6, 92, 0, path, 0.031);
     flat(30, 46, 106, 0, M(0xa59a88, { roughness: 1 }), 0.032);   // the commons plaza
     flat(28, 40, -104, 0, M(0xa59a88, { roughness: 1 }), 0.032);  // the gate plaza
@@ -30804,17 +31377,27 @@ Object.assign(Gfx, {
     Park.boards = {};
     for (const n of [1, 2]) {
       const F = PARK_FIELDS[n];
-      flat(F.L, F.W, F.x, F.z, new THREE.MeshStandardMaterial({ map: this.parkFieldTex(n), roughness: 0.95 }), 0.04);
-      const sb = this.parkBoard(9, 4.2); sb.position.set(F.x, 5.6, F.z - F.W / 2 - 5.5); g.add(sb);
-      const post = new THREE.Mesh(this.boxes([[0.3, 4, 0.3, F.x - 3.5, 2, F.z - F.W / 2 - 5.6], [0.3, 4, 0.3, F.x + 3.5, 2, F.z - F.W / 2 - 5.6]]), dark); g.add(post);
-      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.45, 14, 10), new THREE.MeshBasicMaterial({ color: 0x4fd17a, toneMapped: false })); lamp.position.set(F.x + 5.2, 6.8, F.z - F.W / 2 - 5.5); g.add(lamp);
+      const fm = flat(132 * YD, 66 * YD, F.x, F.z, new THREE.MeshLambertMaterial({ map: this.parkFieldTex(n, V) }), 0.04); fm.receiveShadow = true;
+      // the scoreboard behind the outside end zone, on two posts, with the open/busy light on top
+      const side = n === 1 ? -1 : 1, bx = F.x + side * (F.L / 2 + 7);
+      const sb = this.parkBoard(14, 6.5); sb.position.set(bx, 8, F.z); sb.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2; g.add(sb);
+      g.add(new THREE.Mesh(this.boxes([[0.4, 5, 0.4, bx + side * 0.3, 2.5, F.z - 5], [0.4, 5, 0.4, bx + side * 0.3, 2.5, F.z + 5]]), dark));
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.6, 14, 10), new THREE.MeshBasicMaterial({ color: 0x4fd17a, toneMapped: false })); lamp.position.set(bx, 11.8, F.z); g.add(lamp);
       Park.boards[n] = { sb, lamp };
-      // benches on the near side (the waiting area) and a short bleacher on the far side
-      const bn = []; for (const dx of [-12, -4, 4, 12]) bn.push([3.2, 0.12, 0.6, F.x + dx, 0.5, F.z + F.W / 2 + 3], [0.12, 0.5, 0.5, F.x + dx - 1.4, 0.25, F.z + F.W / 2 + 3], [0.12, 0.5, 0.5, F.x + dx + 1.4, 0.25, F.z + F.W / 2 + 3]);
+      // team benches on the near side, either side of the pickup spots, and bleachers along the far sideline
+      const bn = []; for (const dx of [-30, -24, 24, 30]) bn.push([4.4, 0.12, 0.6, F.x + dx, 0.5, F.z + F.W / 2 + 5], [0.12, 0.5, 0.5, F.x + dx - 2, 0.25, F.z + F.W / 2 + 5], [0.12, 0.5, 0.5, F.x + dx + 2, 0.25, F.z + F.W / 2 + 5]);
       g.add(new THREE.Mesh(this.boxes(bn), wood));
-      bleach(F.x, F.z - F.W / 2 - 9.5, 22, 3, -1, 0.3);
-      const sg = this.parkSign(`${n}V${n} FIELD`, 'PICKUP · CPU PREVIEW', 7, 2.2, '#1b2c5e', '#f2d21b'); sg.position.set(F.x, 2.4, F.z + F.W / 2 + 6.4); g.add(sg);
-      g.add(new THREE.Mesh(this.boxes([[0.2, 2.4, 0.2, F.x - 3.4, 1.2, F.z + F.W / 2 + 6.4], [0.2, 2.4, 0.2, F.x + 3.4, 1.2, F.z + F.W / 2 + 6.4]]), dark));
+      bleach(F.x, F.z - F.W / 2 - 6, 64, 4, -1, 0.35);
+      const sg = this.parkSign(`${n}V${n} FIELD`, 'PICKUP SPOTS · STEP ON ONE', 7, 2.2, '#1b2c5e', '#f2d21b'); sg.position.set(F.x - 16, 2.4, F.z + F.W / 2 + 6.4); g.add(sg);
+      g.add(new THREE.Mesh(this.boxes([[0.2, 2.4, 0.2, F.x - 19.4, 1.2, F.z + F.W / 2 + 6.4], [0.2, 2.4, 0.2, F.x - 12.6, 1.2, F.z + F.W / 2 + 6.4]]), dark));
+    }
+    // the pickup spots: painted rings on the sideline (home navy, away red), one per player
+    {
+      const ringG = new THREE.RingGeometry(0.62, 0.86, 28); ringG.rotateX(-Math.PI / 2);
+      const spots = Park.pickupSpots(), all = []; for (const n of [1, 2, 5]) for (const sp of spots[n]) all.push(sp);
+      const rm = new THREE.InstancedMesh(ringG, new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), all.length), c3 = new THREE.Color();
+      all.forEach((sp, i) => { mm.makeTranslation(sp.x, 0.06, sp.z); rm.setMatrixAt(i, mm); rm.setColorAt(i, c3.set(sp.side ? 0xe0413a : 0x4f86ff)); });
+      g.add(rm);
     }
     // the main field's check-in sign by the west end
     { const s = this.parkSign('MAIN FIELD', '5V5 CHECK-IN · PRESS E', 7, 2.2, '#1b2c5e', '#f2d21b'); s.position.set(-72, 2.4, -14); s.rotation.y = -Math.PI / 2; g.add(s); g.add(new THREE.Mesh(this.boxes([[0.2, 2.4, 0.2, -72, 1.2, -17.4], [0.2, 2.4, 0.2, -72, 1.2, -10.6]]), dark)); }
@@ -30908,8 +31491,8 @@ Object.assign(Gfx, {
       const gp = [], rail = [];
       for (const n of [1, 2]) {
         const F = PARK_FIELDS[n];
-        for (const sx of [-1, 1]) { const x = F.x + sx * (F.L / 2 + 0.6); gp.push([0.14, 2.4, 0.14, x, 1.2, F.z], [0.12, 0.12, 4.2, x, 2.4, F.z], [0.1, 3.2, 0.1, x, 3.9, F.z - 2.05], [0.1, 3.2, 0.1, x, 3.9, F.z + 2.05]); }
-        const x0 = F.x - F.L / 2 - 2, x1 = F.x + F.L / 2 + 2, z0 = F.z - F.W / 2 - 1.6, z1 = F.z + F.W / 2 + 1.6;
+        for (const sx of [-1, 1]) { const x = F.x + sx * (F.L / 2 + 0.1); gp.push([0.22, 3.05, 0.22, x, 1.52, F.z], [0.16, 0.16, 5.64, x, 3.05, F.z], [0.12, 9, 0.12, x, 7.55, F.z - 2.82], [0.12, 9, 0.12, x, 7.55, F.z + 2.82]); }
+        const x0 = F.x - F.L / 2 - 2.4, x1 = F.x + F.L / 2 + 2.4, z0 = F.z - F.W / 2 - 3, z1 = F.z + F.W / 2 + 3;
         rail.push([x1 - x0, 0.08, 0.08, F.x, 1.0, z0], [0.08, 0.08, z1 - z0, x0, 1.0, F.z], [0.08, 0.08, z1 - z0, x1, 1.0, F.z]);
         for (let x = x0; x <= x1 + 0.1; x += 4) rail.push([0.08, 1.0, 0.08, x, 0.5, z0]);
         for (let z = z0; z <= z1 + 0.1; z += 4) rail.push([0.08, 1.0, 0.08, x0, 0.5, z], [0.08, 1.0, 0.08, x1, 0.5, z]);
@@ -30968,6 +31551,96 @@ Object.assign(Gfx, {
      recovery after landing. Before the throw, Space on a route still calls for the ball.
    All of this is Road to the League only; the other modes keep their cameras and controls.
    ============================================================================================= */
+/* Park floating text: short labels over the players for plays and battles. A battle you (a human) are in shows
+   the normal battle screen; every other battle (CPU against CPU, or one you're not part of) just gets a label
+   over the players so you keep watching the live play: TACKLE BATTLE!, JUMP BALL!, FUMBLE BATTLE!. Big plays get a
+   quick one too: INTERCEPTION!, PASS BREAKUP!, SWATTED!, BROKE THE TACKLE!, and what kind of catch it was. */
+const ParkFx = {
+  labels: new Map(), hooked: false, _v: null,
+  on() { return typeof Game !== 'undefined' && Game.mode === 'park' && Game.match && Game.match.o && Game.match.o.park; },
+  hook() {
+    if (this.hooked) return; this.hooked = true;
+    const fx = (k, p, text, cls, dur) => { if (this.on() && p) this.flash(k, p, text, cls, dur); };
+    Bus.on('catch', (d) => {
+      if (!d || !d.p || !this.on()) return; const p = d.p;
+      if (d.how === 'int') return fx('pl', p, 'INTERCEPTION!', 'big', 2);
+      if (d.how !== 'catch') return;
+      const g = p._catchGrade; p._catchGrade = null;
+      const t = p.y > 0.25 ? 'JUMP CATCH!' : p.diving || p.state === 'fallen' ? 'DIVING CATCH!' : d.contested && d.overHead ? 'MOSSED!' : d.contested ? (Math.random() < 0.4 ? 'ONE-HANDED!' : 'CONTESTED CATCH!') : g === 'perfect' ? 'PERFECT CATCH!' : g === 'good' ? 'CAUGHT!' : null;
+      if (t) fx('pl', p, t, d.contested || g === 'perfect' ? 'big' : '', 1.6);
+    });
+    Bus.on('passBreakup', (d) => d && fx('pl', d.p, 'PASS BREAKUP!', 'def', 1.8));
+    Bus.on('swat', (d) => d && fx('pl', d.p, 'SWATTED!', 'def', 1.4));
+    Bus.on('battleEnd', (d) => { if (d && d.B && d.winner === 'runner') fx('pl', d.B.c, 'BROKE THE TACKLE!', 'big', 1.8); });
+    Bus.on('fumble', (d) => d && d.p && fx('pl', d.p, 'FUMBLE!', 'def', 1.6));
+  },
+  el() { let e = document.getElementById('pkFloat'); if (!e) { e = document.createElement('div'); e.id = 'pkFloat'; e.className = 'pk-float'; document.body.appendChild(e); } return e; },
+  flash(k, p, text, cls, dur) {
+    const key = k + ':' + (p.slot || '') + p.team + ':' + text;
+    this.set(key, [p], text, cls, dur);
+  },
+  set(key, pts, text, cls, dur) {
+    let L = this.labels.get(key);
+    if (!L) { const d = document.createElement('div'); d.className = 'pk-fl ' + (cls || ''); d.textContent = text; this.el().appendChild(d); L = { d, pts, until: 0, live: 0 }; this.labels.set(key, L); requestAnimationFrame(() => d.classList.add('on')); }
+    L.pts = pts; L.d.textContent = text;
+    const now = performance.now() / 1000;
+    if (dur) L.until = now + dur; else L.live = now + 0.15;
+  },
+  clear() { for (const L of this.labels.values()) L.d.remove(); this.labels.clear(); },
+  update(m) {
+    this.hook();
+    const w = Game.world; if (!w) return;
+    // battles nobody human is fighting in: a label, never the battle screen
+    for (const B of w.battles || []) if (!B.ended && !B.hc && !B.ht) this.set('tb', [B.c, ...B.ts], 'TACKLE BATTLE!', 'battle');
+    if (w.jb && !(w.jb.R && w.jb.R.h) && !(w.jb.D && w.jb.D.h)) this.set('jb', [w.jb.R.p, w.jb.D.p], 'JUMP BALL!', 'battle');
+    if (w.fb && !w.fb.hc && !w.fb.ht) this.set('fb', [w.fb.c, ...(w.fb.ts || [])].filter(Boolean), 'FUMBLE BATTLE!', 'battle');
+    const now = performance.now() / 1000, v = this._v || (this._v = new V3()), W = innerWidth, H = innerHeight;
+    for (const [k, L] of this.labels) {
+      if (now > Math.max(L.until, L.live)) { L.d.classList.remove('on'); const d = L.d; setTimeout(() => d.remove(), 250); this.labels.delete(k); continue; }
+      const P = L.pts.filter(p => p && p.joints); if (!P.length) continue;
+      v.set(0, 0, 0); let top = 0; for (const p of P) { const h = p.joints[J.HEAD]; v.add(h); top = Math.max(top, h.y); }
+      v.divideScalar(P.length); v.y = top + 0.75; v.project(Gfx.camera);
+      const vis = v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1;
+      L.d.style.display = vis ? '' : 'none';
+      if (vis) L.d.style.transform = `translate(${((v.x + 1) / 2 * W).toFixed(1)}px, ${((1 - v.y) / 2 * H).toFixed(1)}px) translate(-50%, -100%)`;
+    }
+  },
+};
+/* Park mouse look: click the game screen and the cursor hides; from then on just moving the mouse (or swiping
+   the touchpad) turns the camera, no button held. Walking the Park it swings the camera round you; in a Park
+   game it turns the Player Focus camera. Esc, a menu, the play-call screen or a pause gives the cursor back;
+   click the screen again to pick it up. */
+const ParkLook = {
+  inited: false,
+  canvas() { return typeof Gfx !== 'undefined' && Gfx.renderer ? Gfx.renderer.domElement : null; },
+  locked() { const c = this.canvas(); return !!c && document.pointerLockElement === c; },
+  where() {
+    if (typeof Game === 'undefined' || Game.mode !== 'park' || Game.paused) return null;
+    if (typeof Sandbox !== 'undefined' && Sandbox.park) return Park.panel || document.getElementById('pkSpin') ? null : 'roam';
+    const m = Game.match; if (!m || !RoadCtl.focusCam()) return null;
+    return ['presnap', 'live', 'dead', 'kickaim'].includes(m.phase) ? 'game' : null;
+  },
+  init() {
+    if (this.inited || typeof document === 'undefined') return; this.inited = true;
+    document.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || e.target !== this.canvas() || this.locked() || !this.where()) return;
+      try { const r = this.canvas().requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (_) {}
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!this.locked()) return;
+      const w = this.where(), dx = e.movementX || 0, dy = e.movementY || 0; if (!w || (!dx && !dy)) return;
+      if (w === 'game') { if (!RoadCtl.lockOn) RoadCtl.turn(dx, dy); return; }
+      const S = RoadCtl.S(), k = S.sens;
+      Cam.theta = wrapAng((Cam.theta || 0) + dx * 0.0042 * k);
+      Cam.parkPitch = clamp((Cam.parkPitch == null ? 0.5 : Cam.parkPitch) + dy * 0.0032 * k * (S.invert ? -1 : 1), 0.06, 1.2);
+    });
+  },
+  /* every frame: give the cursor back when it's needed (a menu, the play call, a pause) */
+  update() {
+    this.init();
+    if (this.locked() && !this.where() && !RoadCtl.lockOn) { try { document.exitPointerLock(); } catch (_) {} }
+  },
+};
 const ROAD_DEFAULTS = { sens: 1, dist: 1, invert: false, lockKey: 'ControlLeft' };
 const RoadCtl = {
   yaw: 0, pitch: 0.3, zoom: 1, lockOn: false, userT: -99, drag: null, tgt: null, inited: false, lastPlay: null, jumpReadyT: 0,
@@ -31243,6 +31916,14 @@ const Game = {
     if (parkMe) for (const q of parkMe) Road.apply(q);   // the Online Park: you on both sides of the ball
     else if (careerP) { if (o.road) Road.apply(careerP); else Career.apply(careerP); }
     if (o.parkNames) for (const p of m.all) { const nm = o.parkNames[p.team + ':' + p.slot]; if (nm) { p.name = nm.name; if (nm.num != null) p.num = nm.num; } }
+    // a star challenge: the college star looks exactly like he does for his school, and plays like a star
+    if (o.parkStar) for (const p of m.all) if (p.team === o.parkStar.team && (p.slot === o.parkStar.off || p.slot === o.parkStar.def)) {
+      const SD = COLLEGE_TEAMS[o.parkStar.ti], rs = o.parkStar.slot || 'X', R0 = SD.roster && SD.roster[rs];
+      p.parkStar = true; p.nameOnBack = true;
+      if (typeof Looks !== 'undefined' && Looks.apply) Looks.apply(p, (R0 && R0.key) || `${SD.abbr}|${rs}`, new Set(), R0);
+      p.vmax *= 1.07; p.agility = clamp(p.agility * 1.06, 0.3, 1.2); p.hands = clamp(p.hands + 0.08, 0.1, 0.99);
+      p.tackleSk *= 1.15; p.aware = (p.aware || 0.6) * 1.15; p.reaction = clamp((p.reaction || 0.24) - 0.03, 0.12, 0.3);
+    }
     // a park game's uniform spin: shirts, skins or pads per team (your own clothes on you)
     if (o.parkOutfit) for (const p of m.all) { p.outfitOv = o.parkOutfit[p.team]; p.casualOv = o.parkCasual ? o.parkCasual[p.team] : null; if (parkMe && parkMe.includes(p) && p.outfitOv !== 'pads') Park.dressYou(p, p.outfitOv); }
     for (const p of m.all) {
@@ -31250,7 +31931,15 @@ const Game = {
       const featured = userTeam && (parkMe ? parkMe.includes(p) : careerP ? p === careerP : p.slot === 'QB');
       const own = this.looks[p.team].players && this.looks[p.team].players[p.slot];
       if (own && own.num != null) p.num = own.num;   // a number picked in the locker room
-      Gfx.makeView(p, Gear.resolve(this.looks[p.team], p, featured));
+      let look = this.looks[p.team];
+      // park full pads: his own school's uniform, not the Home/Away set
+      const sch = o.parkSchools && p.outfitOv === 'pads' ? o.parkSchools[p.team + ':' + p.slot] : null;
+      if (sch) {
+        const cache = o._schoolLooks || (o._schoolLooks = new Map());
+        if (!cache.has(sch)) { const SL = Gear.defaults(sch, 'home'); SL.acc.variety = true; SL.players = look.players || {}; SL.pants.length = look.pants.length; cache.set(sch, SL); }
+        look = cache.get(sch);
+      }
+      Gfx.makeView(p, Gear.resolve(look, p, featured));
     }
     if (o.career) {
       const cp = careerP; humans[0].locked = cp; this.careerP = cp;
@@ -31774,7 +32463,7 @@ const Cam = {
   },
   update(dt) {
     const cam = Gfx.camera;
-    this.focusOn = false; RoadCtl.update();
+    this.focusOn = false; RoadCtl.update(); ParkLook.update();
     if (Replay.active) { Replay.camera(dt); return; }
     if (Storm.active && Storm.camera(dt)) { this.focus.copy(Storm.center); return; }
     if (Postgame.active && Postgame.camera()) { this.focus.set(0, 0, 0); return; }
@@ -31795,7 +32484,7 @@ const Cam = {
     // behind the offense (on defense): the view faces the way the offense attacks, like a broadcast
     const vdir = mode === 'offview' && G.match && G.world ? G.world.dir[G.match.play && G.match.play.off != null ? G.match.play.off : G.match.poss] : this.viewDir();
     // the Park (free roam): the camera swings round behind you as you run, slowly enough to steer with
-    if (Sandbox.park && Sandbox.you) { const y = Sandbox.you; if (this.theta === undefined) this.theta = y.heading || 0; this.thetaWant = y.speed > 2.5 ? Math.atan2(y.vel.z, y.vel.x) : this.theta; }
+    if (Sandbox.park && Sandbox.you) { const y = Sandbox.you; if (this.theta === undefined) this.theta = y.heading || 0; this.thetaWant = ParkLook.locked() || y.speed <= 2.5 ? this.theta : Math.atan2(y.vel.z, y.vel.x); }
     else if (!live || this.theta === undefined || G.humans.length === 1) this.thetaWant = vdir > 0 ? 0 : Math.PI;
     if (this.theta === undefined) this.theta = this.thetaWant;
     // between plays a turn-around (change of possession with the defense camera facing the offense, the end of
@@ -31876,6 +32565,9 @@ const Cam = {
       const P0 = m.play.td.p, p = P0.pos, f0 = P0.fwd(new V3()), a = Math.atan2(f0.z, f0.x) + 0.6 * Math.sin(this.orbit * 0.7);
       pos.set(p.x + Math.cos(a) * 7.5, 3.2, p.z + Math.sin(a) * 7.5);
       look.set(p.x, 1.3, p.z);
+    } else if (m && m.phase === 'entrance') {
+      // Park entrances: a slow sweep along the sideline the players come in from, looking at midfield
+      const T = m.ent ? Math.max(0, m.ent.t) : 0; pos.set(-12 + T * 2.9, 3.6, HALF_W + 6 - T * 0.4); look.set(T * 0.9 - 3, 1.3, 9); if (m.phaseT < 0.05) cut = true;
     } else if (jbCam) {
       // jump ball: zoom in on the one-on-one from the side, both men and the ball dropping in to them in frame
       const j = jbCam, A = j.R.p.pos, B = j.D.p.pos, b = G.world.ball;
@@ -31938,6 +32630,8 @@ const Cam = {
       if (kind === 'far') { D = 25; H = 15; ahead = 2; }
       if (kind === 'kick') { D = 11; H = 5; ahead = 18; }
       if (Sandbox.active) { D = 11; H = 6; ahead = 3; }
+      // Park mouse look: the mouse sets how high the camera rides, and the camera answers it directly
+      if (Sandbox.park && ParkLook.locked()) { const pp = this.parkPitch == null ? 0.5 : this.parkPitch; D = 3 + 9 * Math.cos(pp); H = 1.4 + 11 * Math.sin(pp); this.focusOn = true; }
       // behind the offense pre-snap: back and up far enough to see the whole defense across the formation
       if (mode === 'offview' && m && (m.phase === 'presnap' || m.phase === 'call')) { D = 21; H = 10.5; ahead = 6; }
       pos.copy(F).addScaledVector(v, -D); pos.y = H; if (!Sandbox.park) pos.z -= F.z * 0.25;
@@ -32436,13 +33130,14 @@ const UI = {
     const kn = (a) => G.keyName(KB1[a][0]);   // Player 1's key for a move (it changes in two-player games)
     if (Sandbox.park) {
       ctx = 'League Park';
-      rows = [K('WASD', 'move'), K('Shift', 'sprint'), K('E', 'interact'), K('M', 'park menu'), K('Esc', 'pause')];
+      rows = [K('WASD', 'move'), K('Shift', 'sprint'), K('Click', 'mouse look'), K('E', 'interact'), K('M', 'park menu'), K('Esc', 'pause')];
     } else if (Sandbox.active) {
       ctx = 'Physics sandbox';
       rows = [K('WASD', 'move'), K('Shift / 2×tap', 'sprint'), K('Space', 'jump'), K(kn('a'), w.ball.holder === Sandbox.you ? 'juke' : 'tackle'), K(kn('b'), w.ball.holder === Sandbox.you ? 'stiff-arm' : 'catch'), K(kn('tr'), 'truck'), K(kn('hu'), 'hurdle'), K(kn('c'), 'dive'), K('hold F', 'throw'), K('T', 'pass to me'), K('G', 'take ball'), K('click', 'spawn')];
     } else if (m.phase === 'call') { ctx = m.callEdit ? 'Change the play' : 'Pick a play'; rows = [K('1–9', 'choose'), K('W / S', 'formation'), K('click', 'choose'), K('pad', 'D-pad + A')]; if (m.callEdit) rows.push(K('Tab', 'keep current play')); }
-    else if (m.phase === 'patchoice') { ctx = 'Try after touchdown'; rows = [K('1', 'kick'), K('2', 'go for two')]; }
+    else if (m.phase === 'patchoice') { ctx = 'Try after touchdown'; rows = m.parkOne && m.parkOne() ? [K('1', 'go for 1'), K('2', 'go for 2')] : [K('1', 'kick'), K('2', 'go for two')]; }
     else if (m.phase === 'toss' && Pregame.active) { ctx = 'Team entrance'; rows = [K('any key', 'skip')]; }
+    else if (m.phase === 'entrance') { ctx = 'Team entrance'; rows = [K('Space', 'skip')]; }
     else if (m.phase === 'toss') { ctx = 'Coin toss'; rows = [K('1 / 2', 'choose'), K('pad', 'D-pad + A')]; }
     else if (m.phase === 'kickaim') { ctx = { kickoff: 'Kickoff', punt: 'Punt', fg: m.play.pat ? 'Extra point' : 'Field goal' }[m.play.kind]; rows = [K('A / D', 'aim (fight the sway)'), K('hold J', 'power'), K('release', 'in the green'), K('tap J', 'accuracy')]; }
     else if (m.phase === 'presnap') {
@@ -32458,8 +33153,8 @@ const UI = {
       else if (p.hasBall) { ctx = 'Ball carrier'; rows = [K(kn('show'), 'showboat (risky)'), K('Shift / 2×tap', 'sprint'), K(kn('a'), 'juke · stick picks the move'), K(kn('tr'), 'truck'), K(kn('hu'), 'hurdle'), K(kn('b'), 'stiff-arm'), K(kn('c'), 'dive')]; if (p.role === 'QB' && m.play.kind === 'scrimmage') rows.push(K(kn('sw'), 'slide')); if (m.play.kind !== 'scrimmage' && w.ball.pos.x * w.dir[p.team] < -GOAL_X) rows.push(K('Space', 'take a knee')); }
       else if (typeof Trench !== 'undefined' && Trench.duelOf(p)) { const D = Trench.duelOf(p); if (D.d === p) { ctx = 'Pass rush'; rows = [K(kn('a'), 'swim'), K(kn('b'), 'rip'), K(kn('tr'), 'bull rush'), K(kn('c'), 'spin'), K(kn('hu'), 'club'), K('WINDOW', 'go when it lights')]; } else { ctx = 'Blocking'; rows = [K(kn('a'), 'punch (vs swim/rip)'), K(kn('b'), 'anchor (vs bull)'), K(kn('tr'), 'drive'), K(kn('c'), 'recover (vs spin)')]; } }
       else if (m.play.kind !== 'scrimmage') { ctx = m.play.kickTeam === p.team ? 'Kick coverage' : 'Kick return'; rows = m.play.kickTeam === p.team ? [K(kn('a'), 'tackle'), K(kn('c'), 'dive'), K('Space', 'switch')] : [K(kn('b'), 'catch'), K(kn('a'), 'block'), K('Shift / 2×tap', 'sprint')]; }
-      else if (p.team !== (m.play && m.play.off) || (w.carrier() && w.carrier().team !== p.team)) { ctx = 'Defense'; rows = [K(kn('a'), 'tackle'), K(kn('tr'), 'shoulder hit'), K(kn('c'), 'dive'), K(kn('b'), 'play the ball'), K('Q+' + kn('b'), 'swat'), K('Space', 'switch to best'), ...(h.dev.arrowsTaken ? [] : [K('Arrows', 'switch by direction')])]; }
-      else { ctx = w.ball.state === 'air' ? 'Ball in the air' : 'Offense'; rows = [K(kn('b'), 'catch (time it)'), K(kn('a'), 'block'), K('Shift / 2×tap', 'sprint')]; if (m.o.career && m.play && m.play.kind === 'scrimmage' && !m.play.thrown && !m.play.callBall && p.brain && p.brain.job === 'route') rows.unshift(K('Space', 'call for the ball')); }
+      else if (p.team !== (m.play && m.play.off) || (w.carrier() && w.carrier().team !== p.team)) { ctx = 'Defense'; rows = m.o.park ? [K(kn('b'), 'intercept (time it)'), K('Q', 'swat'), K('Space', 'jump'), K(kn('c'), 'dive'), K(kn('a'), 'tackle'), K(kn('tr'), 'shoulder hit')] : [K(kn('a'), 'tackle'), K(kn('tr'), 'shoulder hit'), K(kn('c'), 'dive'), K(kn('b'), 'play the ball'), K('Q+' + kn('b'), 'swat'), K('Space', 'switch to best'), ...(h.dev.arrowsTaken ? [] : [K('Arrows', 'switch by direction')])]; }
+      else { ctx = w.ball.state === 'air' ? 'Ball in the air' : 'Offense'; rows = m.o.park ? [K(kn('b'), w.ball.state === 'air' ? 'catch (time it)' : 'call for the ball'), K('Space', 'jump'), K(kn('c'), 'dive'), K('Shift', 'sprint')] : [K(kn('b'), 'catch (time it)'), K(kn('a'), 'block'), K('Shift / 2×tap', 'sprint')]; if (m.o.career && !m.o.park && m.play && m.play.kind === 'scrimmage' && !m.play.thrown && !m.play.callBall && p.brain && p.brain.job === 'route') rows.unshift(K('Space', 'call for the ball')); }
     }
     if (m && (m.phase === 'presnap' || m.phase === 'dead' || m.phase === 'call') && m.canTimeout && m.canTimeout(h.team) && m.clock < 300) rows.push(K('T', `timeout (${m.timeouts[h.team]})`));
     const html = `<div class="ctx">${ctx}</div><div class="row">${rows.join('')}</div>`;
@@ -32734,6 +33429,12 @@ const UI = {
   },
   showPat() {
     const m = Game.match, ov = $('ovCall');
+    if (m.parkOne && m.parkOne()) {
+      ov.innerHTML = `<div class="sheet" style="width:min(560px,100%)"><h2>Try after touchdown</h2><p class="sub">One snap. Go for 1 from the 5, or 2 from the 10.</p><div class="cards">
+      <button class="card" id="patK"><span class="k">1</span><span class="n">Go for 1</span><span class="d">One snap from the 5-yard line.</span></button>
+      <button class="card" id="pat2"><span class="k">2</span><span class="n">Go for 2</span><span class="d">One snap from the 10-yard line.</span></button></div></div>`;
+      ov.hidden = false; $('patK').onclick = () => m.chooseTry(false); $('pat2').onclick = () => m.chooseTry(true); return;
+    }
     ov.innerHTML = `<div class="sheet" style="width:min(560px,100%)"><h2>Try after touchdown</h2><p class="sub">Kick for one, or run a play from the 2 for two.</p><div class="cards">
       <button class="card" id="patK"><span class="k">1</span><span class="n">Extra point</span><span class="d">33-yard kick. Aim and power it yourself.</span></button>
       <button class="card" id="pat2"><span class="k">2</span><span class="n">Go for two</span><span class="d">One snap from the 2-yard line.</span></button></div></div>`;
@@ -33076,7 +33777,8 @@ const Diagram = {
     g.strokeStyle = 'rgba(255,255,255,0.18)'; g.lineWidth = 1;
     for (let d = -5; d <= 25; d += 5) { g.beginPath(); g.moveTo(0, Y(d)); g.lineTo(W, Y(d)); g.stroke(); }
     g.strokeStyle = '#2f7ff0'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, losY); g.lineTo(W, losY); g.stroke();
-    const call = PLAYBOOK.find(p => p.id === id);
+    const one = typeof PARK_ROUTES !== 'undefined' ? PARK_ROUTES.find(p => p.id === id) : null;   // a 1v1 route card: just the QB and the receiver
+    const call = one ? { ...one, routes: { X: one.routes.X } } : PLAYBOOK.find(p => p.id === id);
     const formation = FORMS[(call && call.form) || 'gun'];
     const O = (x, y, col) => { g.fillStyle = col || '#eef1ea'; g.beginPath(); g.arc(x, y, 5.5, 0, 6.283); g.fill(); };
     const arrow = (pts, col, dash) => {
@@ -33092,6 +33794,7 @@ const Diagram = {
         return;
       }
       for (const s of OFF_SLOTS) {
+        if (one && s !== 'QB' && s !== 'X') continue;
         const [bk, lat] = formation[s];
         const x = X(lat), y = Y(-bk);
         const r = call.routes[s];
