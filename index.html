@@ -7450,6 +7450,8 @@ class Match {
     return c.unit === 'off' ? offense : !offense;
   }
   toCall() {
+    // a Park game never snaps from a broken spot: put the ball back at the Park's starting line
+    if (this.o.park && (!Number.isFinite(this.spot) || !Number.isFinite(this.togo))) { this.spot = this.o.park.start; this.down = 1; this.togo = this.parkOne() ? 100 - this.spot : 10; this.ballZ = 0; }
     this.pendingCalls = {}; this.callEdit = null;
     this.play = null;
     this.phaseKind = 'scrimmage';
@@ -8848,7 +8850,7 @@ class Match {
     }
     for (const e of E.list) {
       const p = e.p;
-      if (p.celebCtl && p.is('celeb')) { p.celebCtl(p, dt); continue; }
+      if (p.celebCtl && p.is('celeb')) { p.celebCtl(p, dt); if (!Number.isFinite(p.desired.x) || !Number.isFinite(p.desired.z)) p.desired.set(0, 0, 0); continue; }
       if (E.t < e.delay) { p.desired.set(0, 0, 0); continue; }
       const d = hdist(p.pos, e.tgt);
       if (!e.arrived && d > 0.6) { AI.seek(p, e.tgt, e.pace, 0.6); p.sprint = e.pace > 0.8; continue; }
@@ -8857,7 +8859,7 @@ class Match {
         e.arrived = true;
         const face = new V3(e.t ? -1 : 1, 0, 0);
         p.faceDir = face.clone();
-        p.startAct('celeb', 2.6 + Math.random() * 0.8, { anim: e.anim, dir: face.clone(), face: face.clone(), delay: Math.random() * 0.2 });
+        p.startAct('celeb', 2.6 + Math.random() * 0.8, { anim: e.anim, dir: face.clone(), face: face.clone(), walk: face.clone(), ang0: Math.random() * 6.283, delay: Math.random() * 0.2 });
         p.celebCtl = (pp, dd) => CelebAnim.drive(pp, dd);
       }
     }
@@ -8865,7 +8867,11 @@ class Match {
   }
   endEntrance() {
     if (this.phase !== 'entrance') return;
-    try { for (const e of (this.ent ? this.ent.list : [])) { if (e.p.is('celeb')) e.p.act = null; e.p.celebCtl = null; } } catch (_) {}
+    try { for (const e of (this.ent ? this.ent.list : [])) {
+      const p = e.p; if (p.is('celeb')) p.act = null; p.celebCtl = null;
+      // never carry a broken position into the game (a NaN here used to turn the whole screen black)
+      if (!Number.isFinite(p.pos.x) || !Number.isFinite(p.pos.z) || !Number.isFinite(p.vel.x)) { p.place(e.tgt.x, e.tgt.z, 0); p.vel.set(0, 0, 0); p.desired.set(0, 0, 0); }
+    } } catch (_) {}
     this.ent = null;
     // the game camera picks up from scratch (no long glide across the building from the entrance shot)
     if (typeof Cam !== 'undefined') { Cam.theta = undefined; Cam._entCut = true; }
