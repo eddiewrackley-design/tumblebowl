@@ -8837,6 +8837,9 @@ class Match {
   }
   stepEntrance(dt) {
     const E = this.ent; if (!E) return this.endEntrance();
+    try { this.stepEntrance0(E, dt); } catch (e) { console.error('[Tumble Bowl] entrance:', e); this.endEntrance(); }
+  }
+  stepEntrance0(E, dt) {
     E.t += dt;
     for (const t of [0, 1]) if (!E.intro[t] && E.t > 0.35 + t * 2.1) {
       E.intro[t] = true;
@@ -8862,8 +8865,10 @@ class Match {
   }
   endEntrance() {
     if (this.phase !== 'entrance') return;
-    for (const e of (this.ent ? this.ent.list : [])) { if (e.p.is('celeb')) e.p.act = null; e.p.celebCtl = null; }
+    try { for (const e of (this.ent ? this.ent.list : [])) { if (e.p.is('celeb')) e.p.act = null; e.p.celebCtl = null; } } catch (_) {}
     this.ent = null;
+    // the game camera picks up from scratch (no long glide across the building from the entrance shot)
+    if (typeof Cam !== 'undefined') { Cam.theta = undefined; Cam._entCut = true; }
     this.toCall();
   }
   parkAfterScore(team) {
@@ -31193,8 +31198,16 @@ Object.assign(Gfx, {
   },
   /* the small fields are painted exactly like the field the game is played on (the Park's own venue paint) */
   parkFieldTex(n, V) {
-    const T = Road.hsDef('Home', ['', 'tb'], [0x1b2c5e, 0xf2f2ee], 70, 'HOME'); T.name = T.school = 'Home';
-    return this.fieldTexture(T, false, V);
+    const key = (V.harvest ? 'h' : 'p') + (V.turfColor || ''), C = this._pfCanvas || (this._pfCanvas = {});
+    if (!C[key]) {
+      const T = Road.hsDef('Home', ['', 'tb'], [0x1b2c5e, 0xf2f2ee], 70, 'HOME'); T.name = T.school = 'Home';
+      const full = this.fieldTexture(T, false, V), src = full.image;
+      const c = document.createElement('canvas'); c.width = 1536; c.height = Math.round(1536 * src.height / src.width);
+      const E = C[key] = { c, texs: [] };
+      const copy = () => { c.getContext('2d').drawImage(src, 0, 0, c.width, c.height); E.texs = E.texs.filter(t => t.image === c); for (const t of E.texs) t.needsUpdate = true; };
+      copy(); setTimeout(copy, 1500); setTimeout(() => { copy(); full.dispose(); }, 4000);   // again once the midfield emblem has drawn in
+    }
+    const E = C[key], t = new THREE.CanvasTexture(E.c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; E.texs.push(t); return t;
   },
   /* the League Park Performance Center: an indoor practice facility for queued Park games. A full field of turf
      wall to wall, red end zones, light gray walls with a red band, championship banners and letter panels high
@@ -32106,16 +32119,23 @@ const Game = {
     else if (!this.paused && this.world && !Tutorial.holding) {
       if (this.slowT > 0) this.slowT -= rdt;
       this.acc += rdt * this.timeScale();
-      while (this.acc >= DT && steps < 8) {
-        if (Sandbox.park) Park.step(DT); else if (Sandbox.active) Sandbox.step(DT); else if (this.match) { this.match.step(DT); Pulse.step(DT); }
-        Rec.capture(this.world, DT);
-        this.acc -= DT; steps++;
-      }
+      try {
+        while (this.acc >= DT && steps < 8) {
+          if (Sandbox.park) Park.step(DT); else if (Sandbox.active) Sandbox.step(DT); else if (this.match) { this.match.step(DT); Pulse.step(DT); }
+          Rec.capture(this.world, DT);
+          this.acc -= DT; steps++;
+        }
+      } catch (e) { this.acc = 0; this.frameError(e); }
       if (steps >= 8) this.acc = 0;
     }
     if (steps > 0 || this.paused || Tutorial.holding) for (const d of Object.values(this.devs)) d.clearEdges();
-    this.render(rdt);
+    try { this.render(rdt); } catch (e) { this.frameError(e); }
     requestAnimationFrame((t) => this.frame(t));
+  },
+  /* an error inside a frame no longer kills the game loop: log it (once per message) and carry on */
+  frameError(e) {
+    const k = String(e && e.message); this._errs = this._errs || new Set();
+    if (!this._errs.has(k)) { this._errs.add(k); console.error('[Tumble Bowl] frame error:', e); }
   },
   globalKeys(q) {
     if (this.attract) UI.menuPad();
@@ -32493,6 +32513,7 @@ const Cam = {
     let cut = false;
     if (!live && !Sandbox.park && Math.abs(wrapAng(this.thetaWant - this.theta)) > 1.2) { this.theta = this.thetaWant; cut = true; }
     if (this._lastPh === 'toss' && mPh !== 'toss') cut = true;
+    if (this._entCut) { this._entCut = false; cut = true; }
     this._lastPh = mPh;
     if (cut) this.focus.copy(this._f);
     const dTh = wrapAng(this.thetaWant - this.theta);
@@ -32567,7 +32588,7 @@ const Cam = {
       look.set(p.x, 1.3, p.z);
     } else if (m && m.phase === 'entrance') {
       // Park entrances: a slow sweep along the sideline the players come in from, looking at midfield
-      const T = m.ent ? Math.max(0, m.ent.t) : 0; pos.set(-12 + T * 2.9, 3.6, HALF_W + 6 - T * 0.4); look.set(T * 0.9 - 3, 1.3, 9); if (m.phaseT < 0.05) cut = true;
+      const T = m.ent ? Math.max(0, m.ent.t) : 0; pos.set(-12 + T * 2.9, 3.6, HALF_W + 6 - T * 0.4); look.set(T * 0.9 - 3, 1.3, 9); if (m.ent && !m.ent.camCut) { m.ent.camCut = true; cut = true; }
     } else if (jbCam) {
       // jump ball: zoom in on the one-on-one from the side, both men and the ball dropping in to them in frame
       const j = jbCam, A = j.R.p.pos, B = j.D.p.pos, b = G.world.ball;
