@@ -341,6 +341,103 @@ body:not(:has(#ovMenu:not([hidden]))) .tb-chip { display: none; }
 .rd-soon { font: 700 12px var(--f-mono); letter-spacing: 0.12em; color: #15171a; background: var(--yellow); padding: 4px 8px; border-radius: 4px; font-style: normal; }
 .rd-park p { margin: 0; color: #cfd7d0; line-height: 1.45; max-width: 60ch; } .rd-park .go { margin-top: 6px; width: auto; padding: 10px 18px; }
 @media (max-width: 640px) { .rd-park { grid-template-columns: 1fr; } .rd-park-art { min-height: 120px; } .rd-park-art::after { background: linear-gradient(180deg, transparent 60%, rgba(18,26,35,0.9)); } }
+/* ---------- first-time setup, Controls View, announcements (Onboard) ---------- */
+.ob-wrap { position: fixed; inset: 0; z-index: 96; display: flex; align-items: center; justify-content: center; padding: 16px; font-family: var(--f-body); color: var(--chalk); transition: opacity 0.3s; }
+.ob-wrap.out { opacity: 0; pointer-events: none; }
+.ob-bg { position: fixed; inset: 0; background: radial-gradient(ellipse at 50% 0%, #1b2c4f 0%, #0a1220 50%, #05080d 85%); }
+.ob-bg.dim { background: rgba(4,7,11,0.72); }
+.ob-bg.blur { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.ob-card { position: relative; width: min(1120px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: linear-gradient(180deg, rgba(16,22,31,0.97), rgba(9,13,19,0.98)); border: 1px solid rgba(255,255,255,0.1); border-top: 4px solid var(--yellow); border-radius: 14px; padding: 22px 26px 18px; box-shadow: 0 30px 90px rgba(0,0,0,0.65); animation: obIn 0.35s ease-out; }
+.ob-card.wide { width: min(1240px, 100%); }
+@keyframes obIn { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }
+.ob-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+.ob-head.row { justify-content: flex-start; }
+.ob-mini svg { width: 46px; } .ob-mini .tb-logo { margin: 0; } .ob-mini .tb-logo div { font-size: 20px; }
+.ob-eyebrow { font: 700 12px var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); } .ob-eyebrow.y { color: var(--yellow); }
+.ob-steps { list-style: none; display: flex; gap: 6px; margin: 0 0 0 auto; padding: 0; flex-wrap: wrap; }
+.ob-steps li { display: flex; align-items: center; gap: 6px; font: 700 13px var(--f-body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); padding: 5px 10px; border-radius: 20px; background: rgba(255,255,255,0.04); }
+.ob-steps li i { font-style: normal; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,0.1); font-size: 12px; }
+.ob-steps li.on { color: #15171a; background: var(--yellow); } .ob-steps li.on i { background: rgba(0,0,0,0.15); } .ob-steps li.done { color: var(--good); }
+.ob-title { font: 900 clamp(26px, 3.6vw, 40px) var(--f-display); text-transform: uppercase; letter-spacing: 0.02em; margin: 4px 0 4px; line-height: 1; }
+.ob-title.big { font-size: clamp(34px, 5vw, 60px); }
+.ob-sub { color: #c9d1cb; font-size: 15px; line-height: 1.45; margin: 0 0 14px; max-width: 70ch; }
+.ob-note { color: var(--dim); font-size: 13px; margin: 10px 0 0; } .ob-note a { color: var(--yellow); }
+.ob-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 12px; }
+.ob-sec { background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.ob-sec h3 { margin: 0 0 8px; font: 900 18px var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--yellow); }
+.ob-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; border-top: 1px solid rgba(255,255,255,0.06); flex-wrap: wrap; }
+.ob-row > div:first-child { display: flex; flex-direction: column; min-width: 140px; } .ob-row b { font-size: 15px; } .ob-row span { font-size: 12px; color: var(--dim); }
+.ob-seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.ob-seg button { background: rgba(255,255,255,0.05); border: 1px solid var(--line); color: var(--chalk); border-radius: 6px; padding: 6px 10px; font: 600 13px var(--f-body); cursor: pointer; }
+.ob-seg button.on { background: var(--yellow); border-color: var(--yellow); color: #15171a; }
+.ob-seg button:hover:not(.on) { border-color: rgba(242,210,27,0.6); }
+.ob-vol { display: grid; grid-template-columns: 120px 1fr 34px; align-items: center; gap: 10px; padding: 4px 0; font-size: 14px; } .ob-vol b { text-align: right; font-variant-numeric: tabular-nums; } .ob-vol input { accent-color: var(--yellow); width: 100%; }
+.ob-foot { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; position: sticky; bottom: -18px; padding: 12px 0 6px; background: linear-gradient(180deg, rgba(9,13,19,0), rgba(9,13,19,0.97) 35%); }
+.ob-btn { border-radius: 10px; padding: 12px 22px; font: 900 18px var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; border: 1px solid transparent; transition: transform 0.08s, filter 0.15s, border-color 0.15s; }
+.ob-btn.ob-go { background: var(--yellow); color: #15171a; } .ob-btn.ob-go:hover { filter: brightness(1.08); }
+.ob-btn.ob-gh { background: rgba(255,255,255,0.05); color: var(--chalk); border-color: rgba(255,255,255,0.2); } .ob-btn.ob-gh:hover:not(:disabled) { border-color: var(--yellow); }
+.ob-btn:disabled { opacity: 0.35; cursor: default; } .ob-btn:active { transform: scale(0.98); }
+.ob-btn.sm { padding: 8px 14px; font-size: 15px; }
+.ob-btn.big { display: flex; flex-direction: column; align-items: flex-start; padding: 16px 24px; font-size: 28px; min-width: 230px; } .ob-btn.big small { font: 600 13px var(--f-body); letter-spacing: 0.02em; text-transform: none; opacity: 0.8; }
+.ob-wrap :focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+/* control cards */
+.ob-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.ob-ctlcard { position: relative; display: flex; flex-direction: column; gap: 10px; text-align: left; background: rgba(255,255,255,0.03); border: 2px solid var(--line); border-radius: 14px; padding: 14px; color: var(--chalk); cursor: pointer; transition: border-color 0.15s, transform 0.15s, background 0.15s; }
+.ob-ctlcard:hover { border-color: rgba(242,210,27,0.6); transform: translateY(-2px); }
+.ob-ctlcard.on { border-color: var(--yellow); background: rgba(242,210,27,0.08); }
+.ob-art { height: 230px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ob-art .ob-kb { width: 78%; height: auto; } .ob-art .ob-mouse { width: 17%; height: auto; } .ob-art .ob-phone { height: 100%; width: auto; } .ob-art .ob-pad { width: 100%; height: auto; }
+.ob-ctlname { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; } .ob-ctlname b { font: 900 26px var(--f-display); text-transform: uppercase; letter-spacing: 0.04em; } .ob-ctlname span { color: var(--dim); }
+.ob-ctlname em { font: 700 11px var(--f-mono); letter-spacing: 0.12em; color: #15171a; background: var(--yellow); padding: 2px 6px; border-radius: 4px; font-style: normal; text-transform: uppercase; }
+.ob-ctlname i { margin-left: auto; font-style: normal; font: 700 12px var(--f-mono); letter-spacing: 0.1em; color: var(--yellow); text-transform: uppercase; }
+.ob-detailhead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 12px; }
+.ob-tabs { display: flex; gap: 6px; background: rgba(255,255,255,0.04); padding: 4px; border-radius: 10px; }
+.ob-tabs button { background: none; border: 0; color: var(--dim); padding: 8px 16px; border-radius: 7px; font: 900 17px var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+.ob-tabs button.on { background: var(--yellow); color: #15171a; }
+.ob-detail { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(260px, 1fr); gap: 16px; align-items: start; animation: obIn 0.25s ease-out; }
+.ob-detail.mobile { grid-template-columns: minmax(0, 0.8fr) minmax(260px, 1.2fr); }
+.ob-bigart { background: radial-gradient(ellipse at 50% 30%, rgba(88,183,255,0.08), rgba(0,0,0,0) 70%); border-radius: 12px; display: flex; align-items: center; justify-content: center; min-width: 0; }
+.ob-desk { display: flex; align-items: flex-end; gap: 14px; width: 100%; } .ob-desk .ob-kb { flex: 1; min-width: 0; height: auto; } .ob-desk .ob-mouse { width: 15%; min-width: 70px; height: auto; }
+.ob-bigart .ob-phone { width: min(100%, 340px); height: auto; } .ob-bigart .ob-pad { width: 100%; height: auto; }
+.ob-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.ob-legend section { background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.ob-legend h4 { margin: 0 0 6px; font: 900 14px var(--f-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--yellow); }
+.ob-lr { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; font-size: 13px; } .ob-lr kbd { flex: none; font: 700 12px var(--f-mono); background: #1b222b; border: 1px solid #3a4552; border-bottom-width: 3px; border-radius: 5px; padding: 1px 6px; color: #fff; }
+/* new to tumble bowl */
+.ob-card.ob-new { width: min(1180px, 100%); }
+.ob-newwrap { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 22px; align-items: center; }
+.ob-pic { position: relative; aspect-ratio: 16 / 9; border-radius: 12px; background: #0e1a12 center / cover no-repeat; box-shadow: inset 0 -80px 80px -40px rgba(0,0,0,0.65), 0 14px 40px rgba(0,0,0,0.5); overflow: hidden; }
+.ob-pic::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, rgba(242,210,27,0.12), rgba(0,0,0,0) 40%); }
+.ob-piclogo { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(0,0,0,0.25), rgba(0,0,0,0.6)); z-index: 1; } .ob-piclogo .tb-logo svg { width: 96px; } .ob-piclogo .tb-logo div { font-size: 48px; }
+.ob-handle { position: absolute; left: 14px; bottom: 12px; z-index: 2; background: #000; color: #fff; font: 900 22px var(--f-display); letter-spacing: 0.04em; padding: 4px 12px; border-radius: 6px; box-shadow: -3px 0 0 #25f4ee, 3px 0 0 #fe2c55; }
+.ob-bigbtns { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+/* announcements */
+.ob-news { position: relative; width: min(980px, 100%); background: linear-gradient(180deg, #111822, #080c12); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; overflow: hidden; box-shadow: 0 30px 100px rgba(0,0,0,0.7); animation: obIn 0.35s ease-out; }
+.ob-x { position: absolute; top: 10px; right: 10px; z-index: 5; width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.55); color: #fff; font-size: 18px; cursor: pointer; } .ob-x:hover { background: rgba(0,0,0,0.85); border-color: #fff; }
+.ob-track { position: relative; min-height: 0; }
+.ob-slide { display: none; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+.ob-slide.on { display: grid; animation: obSlide 0.4s ease-out; }
+@keyframes obSlide { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+.ob-slide .ob-pic { border-radius: 0; aspect-ratio: auto; min-height: 340px; }
+.ob-ntxt { padding: 30px 28px 24px; display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+.ob-ntxt h2 { margin: 0; font: 900 clamp(26px, 3.4vw, 40px) var(--f-display); line-height: 1; text-transform: uppercase; }
+.ob-ntxt p { margin: 0; color: #c9d1cb; line-height: 1.5; font-size: 15px; } .ob-ntxt .ob-btn { align-self: flex-start; margin-top: 6px; } .ob-msg { min-height: 18px; font-size: 13px; color: var(--good) !important; }
+.ob-dots { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.35); }
+.ob-dot { width: 10px; height: 10px; border-radius: 6px; border: 0; background: rgba(255,255,255,0.3); cursor: pointer; transition: width 0.25s, background 0.25s; padding: 0; }
+.ob-dot.on { width: 34px; background: var(--yellow); }
+.ob-arr { width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25); background: none; color: #fff; font-size: 20px; cursor: pointer; margin: 0 6px; } .ob-arr:hover { border-color: var(--yellow); color: var(--yellow); }
+.ob-newsgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 18px; align-items: start; }
+.ob-newslist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ob-newslist li { border-left: 3px solid var(--yellow); background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 0 8px 8px 0; }
+.ob-newslist small { font: 700 11px var(--f-mono); letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; } .ob-newslist b { display: block; font: 900 20px var(--f-display); margin: 2px 0; } .ob-newslist p { margin: 0; color: #c9d1cb; font-size: 14px; line-height: 1.45; }
+#ovMenu .modes.ob-flash .mode { animation: obFlash 0.8s ease-in-out 2; } @keyframes obFlash { 50% { border-color: var(--yellow); box-shadow: 0 0 0 2px rgba(242,210,27,0.5); } }
+@media (max-width: 820px) {
+  .ob-cards { grid-template-columns: 1fr; } .ob-art { height: 170px; }
+  .ob-detail, .ob-detail.mobile, .ob-newwrap, .ob-slide.on, .ob-newsgrid { grid-template-columns: 1fr; }
+  .ob-slide .ob-pic { min-height: 190px; } .ob-ntxt { padding: 18px; }
+  .ob-card { padding: 16px; } .ob-steps { margin-left: 0; } .ob-btn.big { min-width: 0; flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .ob-card, .ob-slide.on, .ob-news, .ob-detail { animation: none; } .ob-dot { transition: none; } }
 .pk-hud { position: fixed; inset: 0; pointer-events: none; z-index: 20; font-family: var(--f-body); color: var(--chalk); }
 .pk-hud button, .pk-hud .pk-qpill { pointer-events: auto; }
 .pk-top { position: absolute; top: 12px; left: 12px; right: 64px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
@@ -23277,7 +23374,7 @@ const Postgame = {
         const u = new SpeechSynthesisUtterance(txt);
         const pv = who === 'coach' ? vs[2] || vs[0] : who === PG_BOOTH.color ? vs[1] || vs[0] : who === PG_BOOTH.side ? vs.find(v => /female|samantha|zira|aria|jenny/i.test(v.name)) || vs[0] : vs[0];
         if (pv) u.voice = pv;
-        u.rate = who === 'coach' ? 1.0 : 1.08; u.pitch = who === 'coach' ? 0.8 : who === PG_BOOTH.color ? 0.92 : 1.0; u.volume = 0.9;
+        u.rate = who === 'coach' ? 1.0 : 1.08; u.pitch = who === 'coach' ? 0.8 : who === PG_BOOTH.color ? 0.92 : 1.0; const GS = Game.settings; u.volume = clamp(0.9 * (GS.volComm == null ? 1 : GS.volComm) * (GS.volMaster == null ? 1 : GS.volMaster), 0, 1);
         speechSynthesis.speak(u);
       });
     } catch (e) { }
@@ -29599,7 +29696,10 @@ const Account = {
   enter(welcome) {
     if (this.el) { this.el.classList.add('out'); const e = this.el; setTimeout(() => e.remove(), 450); this.el = null; }
     this.chip();
-    const n = this.next; this.next = null; if (n) n();
+    const n = this.next; this.next = null;
+    // a new account (or a first-time player) goes through the first-time setup before the main menu
+    if (typeof Onboard !== 'undefined' && Onboard.needed(welcome)) { if (welcome) { Game.settings.onboarded = false; Game.saveSettings(); } setTimeout(() => Onboard.start(() => { if (n) n(); }), welcome ? 480 : 0); }
+    else if (n) n();
     if (welcome && this.session && typeof UI !== 'undefined') setTimeout(() => UI.banner({ text: `WELCOME, ${this.session.name.toUpperCase()}`, sub: 'Your Tumble Bowl account is ready', kind: 'good' }), 600);
   },
   async logout() {
@@ -31897,6 +31997,462 @@ const store = {
   remove(k) { this.dropLocal(k); if (typeof CloudSave !== 'undefined') CloudSave.removed(k); },
 };
 
+/* ============================================================
+   ONBOARDING — first-time setup (settings, controls, "New to Tumble Bowl?"),
+   the visual Controls View (keyboard + mouse, phone, controller) and the
+   main-menu announcement pop-ups.
+   Every key shown is read from the live bindings (KB1, the player's own key
+   choices in Game.settings, the gamepad mapping in Device.poll and the
+   on-screen touch layout), so the diagrams follow the controls when they change.
+   Announcements are data (ONBOARD_NEWS): add one to the list and it shows up.
+   ============================================================ */
+const ONBOARD_NEWS = [
+  { id: 'share', shot: 'big', head: 'BRING YOUR FRIENDS TO THE FIELD!', body: 'Enjoying Tumble Bowl? Share the game with your friends and invite them to join the action!', btn: 'SHARE GAME', act: 'share' },
+  { id: 'modes', shot: 'wide', head: 'THERE\'S MORE THAN ONE WAY TO PLAY!', body: 'Explore everything Tumble Bowl has to offer. Jump into different game modes and experience football your way.', btn: 'EXPLORE MODES', act: 'modes' },
+  { id: 'tutorials', shot: 'low', head: 'READY TO LEVEL UP YOUR GAME?', body: 'Learn the controls, master the gameplay, and discover everything you need to know about Tumble Bowl.', btn: 'VIEW TUTORIALS', act: 'tutorials' },
+  { id: 'tiktok', shot: 'logo', head: 'STAY CONNECTED WITH TUMBLE BOWL!', body: 'Want the latest updates, gameplay previews, announcements, and sneak peeks at what\'s coming next? Follow us on TikTok!', handle: '@tumble.bowl', btn: 'FOLLOW US ON TIKTOK', act: 'tiktok', url: 'https://www.tiktok.com/@tumble.bowl' },
+  { id: 'next', shot: 'top', head: 'THE NEXT CHAPTER OF TUMBLE BOWL', body: 'Stay tuned for upcoming features, new content, improvements, and exciting additions coming to Tumble Bowl.', btn: 'VIEW LATEST NEWS', act: 'news' },
+];
+/* the news page (newest first): add a line here when something ships */
+const TB_NEWS = [
+  { date: 'Nov 2026', head: 'Chop tackles, real hurdles and the jump cut', body: 'Defenders chasing from behind now dive at the ankles and can send a runner flipping. The hurdle (O) times itself over the man in front of you, and the juke is a low, wide jump cut.' },
+  { date: 'Nov 2026', head: 'Park overhaul', body: 'Full-size Park fields with walk-up pickup spots, CPU games that play out real snaps, team entrances, timed catching and a Q swat button, and the indoor League Park Performance Center for queued games.' },
+  { date: 'Nov 2026', head: 'Star challenges', body: 'Each week six star college receivers and cornerbacks visit the Park. Beat them for their jerseys or bonus XP (Quest board, ★ Stars).' },
+  { date: 'Nov 2026', head: 'Harvest Showdown', body: 'November\'s Park event is played on a fall field: autumn turf, plaid end zones, hay bales, pumpkins and falling leaves.' },
+  { date: 'Nov 2026', head: 'New 1v1 rules', body: 'From the 25 with four downs to score. Touchdowns are 6, go for 1 from the 5 or 2 from the 10, and a pick is worth 2. Pick a route, not a play.' },
+];
+const Onboard = {
+  el: null, step: 0, ctl: 'desktop', shots: {}, hadSettings: false, newsShown: false,
+  S() { return Game.settings; },
+  isOpen() { return !!(this.el && !this.el.hidden && this.el.isConnected); },
+  /* should the first-time setup run? a brand-new account always; a player with no account the first time only */
+  needed(welcome) {
+    const S = this.S();
+    if (welcome) return true;
+    if (S.onboarded === true) return false;
+    if (S.onboarded === false) return true;
+    return !this.hadSettings && !(typeof Account !== 'undefined' && Account.session);
+  },
+  /* the device this is: a touch screen gets the phone, a connected controller the controller, else the desktop */
+  detect() {
+    try { if (navigator.getGamepads && [...navigator.getGamepads()].some(g => g)) return 'controller'; } catch (e) { }
+    if (typeof window !== 'undefined' && window.matchMedia && matchMedia('(hover: none) and (pointer: coarse)').matches) return 'mobile';
+    return 'desktop';
+  },
+
+  /* ---------- screenshots from the game itself ----------
+     The menus run a live CPU game behind them; a picture is that game drawn from a chosen angle. */
+  grab(kind) {
+    if (this.shots[kind]) return this.shots[kind];
+    try {
+      const w = Game.world, cam = Gfx.camera, r = Gfx.renderer; if (!w || !cam || !r) return null;
+      const keep = { p: cam.position.clone(), q: cam.quaternion.clone(), fov: cam.fov };
+      const ups = w.players.filter(p => !p.ghost && p.joints);
+      const b = w.ball ? w.ball.pos : new V3();
+      const near = ups.slice().sort((p, q) => hdist(p.pos, b) - hdist(q.pos, b));
+      const c = near[0] ? near[0].pos : b;
+      if (kind === 'low' || kind === 'big') { const s = kind === 'big' ? 1 : -1; cam.position.set(c.x + 5.5 * s, kind === 'big' ? 1.2 : 1.8, c.z + 6.5); cam.lookAt(c.x, 1.0, c.z); cam.fov = 42; }
+      else if (kind === 'wide') { cam.position.set(c.x - 18, 9, c.z + 26); cam.lookAt(c.x + 4, 0.5, c.z); cam.fov = 45; }
+      else if (kind === 'end') { cam.position.set(Math.sign(c.x || 1) * (ENDLINE_X + 2), 14, 6); cam.lookAt(0, 0, 0); cam.fov = 50; }
+      else { cam.position.set(c.x - 8, 5, c.z + 14); cam.lookAt(c.x, 1, c.z); cam.fov = 48; }
+      cam.updateProjectionMatrix();
+      r.render(Gfx.scene, cam);
+      const src = r.domElement, out = document.createElement('canvas'), W = 960, H = Math.round(960 * src.height / Math.max(1, src.width)) || 540;
+      out.width = W; out.height = Math.min(H, 600);
+      out.getContext('2d').drawImage(src, 0, 0, W, out.height);
+      cam.position.copy(keep.p); cam.quaternion.copy(keep.q); cam.fov = keep.fov; cam.updateProjectionMatrix();
+      const url = out.toDataURL('image/jpeg', 0.84);
+      if (url.length > 2000) this.shots[kind] = url;
+      return this.shots[kind] || null;
+    } catch (e) { return null; }
+  },
+  pic(kind, extra) {
+    const u = this.grab(kind === 'logo' ? 'end' : kind);
+    return `<div class="ob-pic ${kind}" style="${u ? `background-image:url(${u})` : ''}">${kind === 'logo' ? `<div class="ob-piclogo">${Account.logo ? Account.logo() : ''}</div>` : ''}${extra || ''}</div>`;
+  },
+
+  /* ---------- the overlay shell ---------- */
+  shell() {
+    if (!this.el || !this.el.isConnected) {
+      this.el = document.createElement('div'); this.el.id = 'tbOnboard'; this.el.className = 'ob-wrap'; this.el.setAttribute('role', 'dialog'); this.el.setAttribute('aria-modal', 'true');
+      document.body.appendChild(this.el);
+      this.keys = (e) => this.key(e);
+      window.addEventListener('keydown', this.keys, true);
+      this.pad();
+    }
+    this.el.hidden = false;
+    return this.el;
+  },
+  close() {
+    if (!this.el) return;
+    const e = this.el; e.classList.add('out'); this.el = null; this.mode = null;
+    window.removeEventListener('keydown', this.keys, true);
+    setTimeout(() => e.remove(), 320);
+  },
+  /* keyboard inside the overlay: the game's own hotkeys never fire behind it */
+  key(e) {
+    if (!this.isOpen()) return;
+    const t = e.target, typing = t && (t.tagName === 'INPUT' && t.type !== 'range');
+    if (typing) return;
+    e.stopImmediatePropagation();
+    if (e.code === 'Escape') { e.preventDefault(); this.back(); }
+    else if (e.code === 'ArrowLeft' && this.mode === 'news') { e.preventDefault(); this.newsGo(this.ni - 1); }
+    else if (e.code === 'ArrowRight' && this.mode === 'news') { e.preventDefault(); this.newsGo(this.ni + 1); }
+    else if (e.code === 'Enter' || e.code === 'Space') { if (t && t.tagName === 'BUTTON') { e.preventDefault(); t.click(); } }
+  },
+  /* a controller: D-pad / stick moves between buttons, left and right flip announcements, A presses, B goes back */
+  pad() {
+    let prev = {};
+    const loop = () => {
+      if (!this.isOpen()) return;
+      requestAnimationFrame(loop);
+      const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(g => g) : null; if (!gp) return;
+      const B = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed), ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+      const now = { up: B(12) || ay < -0.6, down: B(13) || ay > 0.6, left: B(14) || ax < -0.6, right: B(15) || ax > 0.6, a: B(0), b: B(1), lb: B(4), rb: B(5) };
+      const edge = (k) => now[k] && !prev[k]; prev = now;
+      if (edge('b')) return this.back();
+      if (this.mode === 'news' && (edge('lb') || (edge('left') && !this.el.querySelector('input:focus')))) return this.newsGo(this.ni - 1);
+      if (this.mode === 'news' && (edge('rb') || edge('right'))) return this.newsGo(this.ni + 1);
+      const items = [...this.el.querySelectorAll('button, input, [tabindex="0"]')].filter(x => x.offsetParent !== null && !x.disabled);
+      if (!items.length) return;
+      let i = items.indexOf(document.activeElement);
+      const move = (d) => { i = i < 0 ? 0 : (i + d + items.length) % items.length; items[i].focus(); items[i].scrollIntoView({ block: 'nearest' }); };
+      if (edge('down') || edge('right')) move(1); else if (edge('up') || edge('left')) move(-1);
+      if (edge('a') && i >= 0) items[i].click();
+    };
+    requestAnimationFrame(loop);
+  },
+  back() {
+    if (this.mode === 'setup') { if (this.ctlBig) { this.ctlBig = null; return this.render(); } if (this.step > 0) { this.step--; return this.render(); } return; }
+    if (this.mode === 'controls') { if (this.ctlBig) { this.ctlBig = null; return this.renderControls(); } return this.closeControls(); }
+    if (this.mode === 'news' || this.mode === 'newspage') return this.close();
+  },
+
+  /* ---------- first-time setup ---------- */
+  start(done) {
+    this.done = done; this.step = 0; this.mode = 'setup'; this.ctl = this.detect(); this.ctlBig = null;
+    this.shell(); this.render();
+  },
+  finish(dest) {
+    const S = this.S(); S.onboarded = true; S.ctlType = this.ctl; Game.saveSettings();
+    this.close();
+    const d = this.done; this.done = null; if (d) d();
+    if (dest === 'tutorial') setTimeout(() => UI.title('tutorial'), 60);
+    else setTimeout(() => this.maybeNews(true), 1400);
+  },
+  steps: ['Settings', 'Controls', 'Get started'],
+  render() {
+    const el = this.shell(), n = this.steps.length;
+    const prog = `<ol class="ob-steps">${this.steps.map((s, i) => `<li class="${i === this.step ? 'on' : i < this.step ? 'done' : ''}"><i>${i + 1}</i>${s}</li>`).join('')}</ol>`;
+    let body = '';
+    if (this.step === 0) body = this.settingsHTML();
+    else if (this.step === 1) body = this.ctlBig ? this.ctlDetail(this.ctlBig, true) : this.ctlPickHTML('Choose your controls', 'Tumble Bowl is built for keyboard and mouse, and plays on a touch screen or a controller too. Pick one to see its full layout. You can switch any time.');
+    else body = this.newHTML();
+    el.innerHTML = `<div class="ob-bg"></div><div class="ob-card ${this.step === 2 ? 'ob-new' : ''}"><header class="ob-head">${Account.logo ? `<div class="ob-mini">${Account.logo()}</div>` : ''}<div class="ob-eyebrow">First-time setup · Step ${this.step + 1} of ${n}</div>${prog}</header>${body}
+      ${this.step < 2 ? `<footer class="ob-foot"><button class="ob-btn ob-gh" id="obBack" ${this.step === 0 && !this.ctlBig ? 'disabled' : ''}>Back</button><button class="ob-btn ob-go" id="obNext">${this.ctlBig ? 'Use these controls' : 'Continue'}</button></footer>` : ''}</div>`;
+    this.wireSettings(el);
+    this.wireCtl(el, () => this.render());
+    const nx = el.querySelector('#obNext'); if (nx) nx.onclick = () => { Sfx.init && Sfx.init(); Sfx.click && Sfx.click(); if (this.ctlBig) { this.ctl = this.ctlBig; this.ctlBig = null; } this.S().ctlType = this.ctl; Game.saveSettings(); this.step++; this.render(); };
+    const bk = el.querySelector('#obBack'); if (bk) bk.onclick = () => { Sfx.click && Sfx.click(); this.back(); };
+    const ht = el.querySelector('#obHow'); if (ht) ht.onclick = () => { Sfx.click && Sfx.click(); this.finish('tutorial'); };
+    const sk = el.querySelector('#obSkip'); if (sk) sk.onclick = () => { Sfx.click && Sfx.click(); this.finish('menu'); };
+    const f = el.querySelector('#obNext, #obHow'); if (f) f.focus({ preventScroll: true });
+  },
+  settingsHTML() {
+    const S = this.S(), G = Game;
+    const seg = (key, opts, cur) => `<div class="ob-seg" data-set="${key}">${opts.map(([v, l]) => `<button data-v="${v}" class="${String(v) === String(cur) ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+    const row = (label, help, ctl) => `<div class="ob-row"><div><b>${label}</b><span>${help}</span></div>${ctl}</div>`;
+    const vol = (k, n) => { const v = Math.round((S[k] == null ? 1 : S[k]) * 100); return `<label class="ob-vol"><span>${n}</span><input type="range" min="0" max="100" value="${v}" data-vol="${k}" aria-label="${n} volume"><b>${v}</b></label>`; };
+    return `<h2 class="ob-title">Game settings</h2><p class="ob-sub">Set things up the way you like them. Everything here is saved to your account, and you can change it any time from Settings (the gear, top right).</p>
+      <div class="ob-grid">
+      <section class="ob-sec"><h3>Sound</h3>${vol('volMaster', 'Master')}${vol('volMusic', 'In-game music')}${vol('volMenu', 'Menu music')}${vol('volCrowd', 'Crowd')}${vol('volSfx', 'Sound effects')}${vol('volComm', 'Commentary')}
+        ${row('Commentary voice', 'The booth reads the postgame recap out loud', seg('pgVoice', [['on', 'On'], ['off', 'Off']], S.pgVoice === false ? 'off' : 'on'))}</section>
+      <section class="ob-sec"><h3>Camera</h3>
+        ${row('Offense camera', 'How you see the field with the ball', seg('camOff', Cam.list('off').map(k => [k, CAM_MODES[k].short]), S.camOff || 'auto'))}
+        ${row('Defense camera', 'How you see the field on defense', seg('camDef', Cam.list('def').map(k => [k, CAM_MODES[k].short]), S.camDef || 'auto'))}
+        ${row('Road to the League & Park camera', 'Your own player\'s camera', seg('camCareer', Cam.CAREER_CAMS.map(([k, n]) => [k, n.split(' · ')[0]]), Cam.careerMode(S.camCareer)))}
+        ${row('Sideline cutscenes', 'Short TV-style moments between plays', seg('cutscenes', [['on', 'On'], ['off', 'Off']], S.cutscenes === false ? 'off' : 'on'))}
+        ${row('Auto replays', 'Replay big plays after the whistle', seg('autoReplay', [['on', 'On'], ['off', 'Off']], G.autoReplay ? 'on' : 'off'))}</section>
+      <section class="ob-sec"><h3>Gameplay</h3>
+        ${row('Difficulty', 'For Quick Match', seg('diff', [['rookie', 'Rookie'], ['pro', 'Pro'], ['allpro', 'All-Pro']], S.diff || 'pro'))}
+        ${row('Quarter length', 'For Quick Match', seg('qLen', [[2, '2 min'], [3, '3 min'], [5, '5 min'], [8, '8 min']], S.qLen || 3))}
+        ${row('Tackle battles', 'Mash to break free, or let them play out', seg('battles', [['on', 'Mash to win'], ['off', 'Automatic']], S.battles !== false ? 'on' : 'off'))}
+        ${row('Jump balls', 'Contested catches', seg('jumpBalls', [['on', 'Mash to win'], ['off', 'Automatic']], S.jumpBalls !== false ? 'on' : 'off'))}
+        ${row('Celebration wheel', 'Pick your celebration after a score', seg('celebWheel', [['on', 'On'], ['off', 'Off']], S.celebWheel !== false ? 'on' : 'off'))}
+        ${row('Weather particles', 'Reduce on slower computers', seg('wxQ', [['1', 'Full'], ['0.45', 'Reduced']], String(S.wxQ || 1)))}</section>
+      <section class="ob-sec"><h3>Controls</h3>
+        ${row('Touch controls', 'On-screen joystick and buttons', seg('touch', [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], S.touch || 'auto'))}
+        ${row('Mash key', 'Tackle battles', seg('mashKey', [['Space', 'Space'], ['KeyV', 'V'], ['KeyB', 'B']], S.mashKey || 'Space'))}
+        ${row('Truck key', 'Lower the shoulder / big hit', seg('truckKey', [['KeyI', 'I'], ['KeyE', 'E'], ['KeyU', 'U']], S.truckKey || 'KeyI'))}
+        ${row('Camera key', 'Cycle the camera', seg('camKey', [['KeyV', 'V'], ['KeyN', 'N'], ['KeyH', 'H']], S.camKey || 'KeyV'))}
+        ${row('Contest key', 'Jump balls', seg('jumpKey', [['KeyE', 'E'], ['KeyF', 'F'], ['Space', 'Space']], S.jumpKey || 'KeyE'))}</section>
+      </div>`;
+  },
+  wireSettings(el) {
+    const S = this.S(), G = Game;
+    el.querySelectorAll('input[data-vol]').forEach(r => {
+      r.oninput = () => { S[r.dataset.vol] = (+r.value) / 100; r.nextElementSibling.textContent = r.value; Sfx.init && Sfx.init(); Sfx.applyVol && Sfx.applyVol(); };
+      r.onchange = () => { G.saveSettings(); Sfx.click && Sfx.click(); };
+    });
+    el.querySelectorAll('.ob-seg[data-set]').forEach(sg => sg.querySelectorAll('button').forEach(b => b.onclick = () => {
+      const k = sg.dataset.set, v = b.dataset.v; Sfx.click && Sfx.click();
+      if (k === 'camOff') Cam.setPref('off', v);
+      else if (k === 'camDef') Cam.setPref('def', v);
+      else if (k === 'camCareer') Cam.setCareer(v);
+      else if (k === 'autoReplay') G.autoReplay = v === 'on';
+      else if (['pgVoice', 'cutscenes', 'battles', 'jumpBalls', 'celebWheel'].includes(k)) S[k] = v === 'on';
+      else if (k === 'qLen') S[k] = +v;
+      else if (k === 'wxQ') { S.wxQ = +v; Gfx.precipScale = +v; }
+      else if (k === 'truckKey') { S.truckKey = v; if (S.jumpKey === v) S.jumpKey = 'KeyF'; }
+      else S[k] = v;
+      if (k === 'touch' && typeof TouchPad !== 'undefined') { TouchPad.on = TouchPad.available(); if (!TouchPad.on && TouchPad.el) TouchPad.el.hidden = true; }
+      S.autoReplay = G.autoReplay;
+      G.saveSettings();
+      // a key change can move another key (one key, one job): redraw so every row shows the truth
+      if (['truckKey', 'jumpKey', 'mashKey', 'camKey'].includes(k)) { const y = el.querySelector('.ob-grid') && el.querySelector('.ob-card').scrollTop; this.render(); const c = this.el && this.el.querySelector('.ob-card'); if (c && y != null) c.scrollTop = y; return; }
+      sg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    }));
+  },
+  newHTML() {
+    return `<div class="ob-newwrap">${this.pic('big')}<div class="ob-newtxt"><div class="ob-eyebrow y">You're all set</div><h2 class="ob-title big">NEW TO TUMBLE BOWL?</h2><p class="ob-sub">Learn the basics and become game-ready before stepping onto the field.</p>
+      <div class="ob-bigbtns"><button class="ob-btn ob-go big" id="obHow">HOW TO PLAY<small>Beginner tutorials, at your own pace</small></button><button class="ob-btn ob-gh big" id="obSkip">SKIP<small>Straight to the main menu</small></button></div>
+      <p class="ob-note">Tutorials are always on the main menu, any time you want them.</p></div></div>`;
+  },
+
+  /* ---------- the controls: three cards and a full view ---------- */
+  ctlPickHTML(title, sub) {
+    const C = [['desktop', 'Desktop', 'Keyboard & mouse', 'Default'], ['mobile', 'Mobile', 'Touch screen', ''], ['controller', 'Controller', 'Xbox-style gamepad', '']];
+    return `<h2 class="ob-title">${title}</h2><p class="ob-sub">${sub}</p>
+      <div class="ob-cards">${C.map(([k, n, d, tag]) => `<button class="ob-ctlcard ${this.ctl === k ? 'on' : ''}" data-ctl="${k}" aria-pressed="${this.ctl === k}"><div class="ob-art">${k === 'desktop' ? this.kbSVG(true) + this.mouseSVG(true) : k === 'mobile' ? this.phoneSVG(true) : this.padSVG(true)}</div><div class="ob-ctlname"><b>${n}</b><span>${d}</span>${tag ? `<em>${tag}</em>` : ''}${this.ctl === k ? '<i>Selected</i>' : ''}</div></button>`).join('')}</div>`;
+  },
+  wireCtl(el, redraw) {
+    el.querySelectorAll('[data-ctl]').forEach(b => b.onclick = () => { Sfx.click && Sfx.click(); this.ctl = b.dataset.ctl; this.ctlBig = b.dataset.ctl; redraw(); });
+    el.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { Sfx.click && Sfx.click(); this.ctl = b.dataset.tab; this.ctlBig = b.dataset.tab; redraw(); });
+    const cb = el.querySelector('#obCtlBack'); if (cb) cb.onclick = () => { Sfx.click && Sfx.click(); this.ctlBig = null; redraw(); };
+  },
+  ctlDetail(k, inSetup) {
+    const tabs = `<div class="ob-tabs" role="tablist">${[['desktop', 'Desktop'], ['mobile', 'Mobile'], ['controller', 'Controller']].map(([t, n]) => `<button role="tab" data-tab="${t}" class="${t === k ? 'on' : ''}" aria-selected="${t === k}">${n}</button>`).join('')}</div>`;
+    const L = this.legend(k);
+    const art = k === 'desktop' ? `<div class="ob-desk">${this.kbSVG(false)}${this.mouseSVG(false)}</div>` : k === 'mobile' ? this.phoneSVG(false) : this.padSVG(false);
+    return `<div class="ob-detailhead">${inSetup ? '<button class="ob-btn ob-gh sm" id="obCtlBack">‹ All controls</button>' : ''}${tabs}</div>
+      <div class="ob-detail ${k}"><div class="ob-bigart">${art}</div><div class="ob-legend">${L.map(([g, rows]) => `<section><h4>${g}</h4>${rows.map(([key, what]) => `<div class="ob-lr"><kbd>${esc(key)}</kbd><span>${esc(what)}</span></div>`).join('')}</section>`).join('')}</div></div>`;
+  },
+  /* the actual controls, read live: keyboard from KB1 and the player's key choices, controller from Device.poll,
+     touch from the on-screen buttons */
+  legend(k) {
+    if (k === 'desktop') {
+      const K = TUT_KEYS.kb(), S = this.S(), kn = (c) => Game.keyName(c);
+      const lock = (typeof RoadCtl !== 'undefined' && RoadCtl.S && RoadCtl.S().lockKey) || 'ControlLeft';
+      return [
+        ['Movement', [[K.move, 'Move'], [K.sprint + ' / double-tap', 'Sprint'], [K.sw, 'Snap the ball / switch player'], ['Arrows', 'Switch defender by direction']]],
+        ['Ball carrier', [[K.juke, 'Juke (direction picks the move)'], [K.stiff, 'Stiff-arm'], [K.truck, 'Truck'], [K.hurdle, 'Hurdle (timed over the man ahead)'], [K.dive, 'Dive'], [kn(KB1.show[0]), 'Showboat'], [K.mash, 'Mash: break tackles']]],
+        ['Passing & catching', [[K.throw, 'Throw to receiver 1–5'], [K.lob, 'Hold for a lob'], [K.catch, 'Catch (time it)'], [kn(S.jumpKey || 'KeyE'), 'Jump-ball contest'], ['Space', 'Jump (Road & Park)'], [K.catch + ' before the throw', 'Call for the ball (Park)']]],
+        ['Defense', [[K.tackle, 'Tackle'], [K.hit, 'Shoulder hit'], [K.dive, 'Dive / chop at the ankles'], [K.catch, 'Play the ball / intercept'], [K.swat, 'Swat (Park: ' + kn(KB1.lob[0]) + ')']]],
+        ['Game', [[K.pick, 'Pick a play'], [K.change, 'Change the play'], [K.art, 'Play art'], [kn(KB1.to[0]), 'Timeout'], [K.cam, 'Camera'], ['R', 'Replay'], [kn(S.celebKey || 'KeyC') + ' / ' + kn(S.celebQuick || 'KeyX'), 'Celebrate / quick celebrate'], [lock === 'ControlLeft' ? 'Ctrl' : kn(lock), 'Shift Lock (Player Focus camera)'], [K.pause, 'Pause & settings']]],
+        ['Mouse', [['Left drag', 'Turn the Player Focus camera'], ['Right drag', 'Turn the Player Focus camera'], ['Wheel', 'Zoom the Player Focus camera'], ['Click (Park)', 'Mouse look: the cursor hides, the mouse turns the camera'], ['Click', 'Menus and play cards']]],
+      ];
+    }
+    if (k === 'controller') {
+      const P = TUT_KEYS.pad();
+      return [
+        ['Movement', [[P.move, 'Move'], [P.sprint, 'Sprint'], ['A', 'Snap the ball / switch player'], ['Right stick flick', 'Switch defender by direction'], ['D-pad', 'Move / menus']]],
+        ['Ball carrier', [['X', 'Juke'], ['B', 'Stiff-arm'], ['RB', 'Truck'], ['LB', 'Hurdle'], ['Y', 'Dive'], ['LT', 'Showboat'], ['A', 'Mash: break tackles']]],
+        ['Passing & catching', [['X · Y · B · A · RB', 'Throw to receiver 1–5'], ['LB', 'Hold for a lob'], ['B', 'Catch'], ['A', 'Jump-ball contest']]],
+        ['Defense', [['X', 'Tackle'], ['RB', 'Shoulder hit'], ['Y', 'Dive'], ['B', 'Play the ball'], ['LB + B', 'Swat']]],
+        ['Game', [['D-pad + A', 'Pick a play'], ['View', 'Change the play'], ['R3 (right stick click)', 'Play art'], ['L3 (left stick click)', 'Timeout'], ['Menu', 'Pause']]],
+      ];
+    }
+    return [
+      ['Movement', [['Joystick (left side)', 'Move'], ['Joystick to the edge', 'Sprint'], ['SNAP / SWITCH', 'Snap the ball / switch player']]],
+      ['Ball carrier', [['JUKE', 'Juke'], ['STIFF', 'Stiff-arm'], ['TRUCK', 'Truck'], ['HURDLE', 'Hurdle'], ['DIVE', 'Dive'], ['SHOW', 'Showboat'], ['MASH', 'Break tackles (shows when you need it)']]],
+      ['Passing & catching', [['1 – 5', 'Throw to that receiver'], ['LOB', 'Hold for a lob'], ['CATCH', 'Catch'], ['JUMP', 'Jump-ball contest']]],
+      ['Defense', [['TACKLE', 'Tackle'], ['HIT', 'Shoulder hit'], ['DIVE', 'Dive'], ['SWAT', 'Swat the ball'], ['SWITCH', 'Switch player']]],
+      ['Game', [['Tap a play card', 'Pick a play'], ['TO', 'Timeout'], ['CAM', 'Camera'], ['II', 'Pause']]],
+    ];
+  },
+
+  /* ---------- the drawings ---------- */
+  kbSVG(small) {
+    const S = this.S(), kn = (c) => Game.keyName(c);
+    // what each key does right now (only keys that do something are highlighted)
+    const role = {};
+    const put = (code, txt, grp) => { if (!code) return; if (!role[code]) role[code] = { t: txt, g: grp }; };
+    ['up', 'down', 'left', 'right'].forEach(k => put(KB1[k][0], '', 'move'));
+    put(KB1.sprint[0], 'SPRINT', 'move');
+    put(KB1.sw[0], 'SNAP · SWITCH · JUMP', 'move');
+    put(KB1.a[0], 'JUKE · TACKLE', 'off'); put(KB1.b[0], 'STIFF · CATCH', 'off'); put(KB1.c[0], 'DIVE', 'off');
+    put(KB1.tr[0], 'TRUCK · HIT', 'off'); put(KB1.hu[0], 'HURDLE', 'off'); put(KB1.lob[0], 'LOB · SWAT', 'pass');
+    KB1.recv.forEach((c, i) => put([].concat(c)[0], 'WR ' + (i + 1), 'pass'));
+    put(S.jumpKey || 'KeyE', 'CONTEST', 'pass');
+    put(KB1.chg[0], 'CHANGE PLAY', 'game'); put(KB1.to[0], 'TIMEOUT', 'game'); put(KB1.show[0], 'SHOWBOAT', 'off');
+    put(S.camKey || 'KeyV', 'CAMERA', 'game'); put('KeyR', 'REPLAY', 'game'); put('KeyY', 'PLAY ART', 'game');
+    put(S.celebKey || 'KeyC', 'CELEBRATE', 'game'); put(S.celebQuick || 'KeyX', 'QUICK CELEB', 'game'); put('Escape', 'PAUSE', 'game');
+    put('ControlLeft', 'SHIFT LOCK', 'game');
+    ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].forEach(c => put(c, '', 'def'));
+    if (S.mashKey && S.mashKey !== KB1.sw[0]) put(S.mashKey, 'MASH', 'off');
+    const rows = [
+      [['Escape', 'Esc', 1.25], ['Digit1', '1'], ['Digit2', '2'], ['Digit3', '3'], ['Digit4', '4'], ['Digit5', '5'], ['Digit6', '6'], ['Digit7', '7'], ['Digit8', '8'], ['Digit9', '9'], ['Digit0', '0'], ['Minus', '-'], ['Equal', '='], ['Backspace', '⌫', 1.75]],
+      [['Tab', 'Tab', 1.5], ['KeyQ', 'Q'], ['KeyW', 'W'], ['KeyE', 'E'], ['KeyR', 'R'], ['KeyT', 'T'], ['KeyY', 'Y'], ['KeyU', 'U'], ['KeyI', 'I'], ['KeyO', 'O'], ['KeyP', 'P'], ['BracketLeft', '['], ['BracketRight', ']'], ['Backslash', '\\', 1.5]],
+      [['CapsLock', 'Caps', 1.8], ['KeyA', 'A'], ['KeyS', 'S'], ['KeyD', 'D'], ['KeyF', 'F'], ['KeyG', 'G'], ['KeyH', 'H'], ['KeyJ', 'J'], ['KeyK', 'K'], ['KeyL', 'L'], ['Semicolon', ';'], ['Quote', '\''], ['Enter', 'Enter', 2.2]],
+      [['ShiftLeft', 'Shift', 2.35], ['KeyZ', 'Z'], ['KeyX', 'X'], ['KeyC', 'C'], ['KeyV', 'V'], ['KeyB', 'B'], ['KeyN', 'N'], ['KeyM', 'M'], ['Comma', ','], ['Period', '.'], ['Slash', '/'], ['ShiftRight', 'Shift', 1.65], ['ArrowUp', '↑', 1]],
+      [['ControlLeft', 'Ctrl', 1.4], ['AltLeft', 'Alt', 1.2], ['MetaLeft', '⌘', 1.2], ['Space', 'Space', 6.4], ['AltRight', 'Alt', 1.2], ['ArrowLeft', '←', 1], ['ArrowDown', '↓', 1], ['ArrowRight', '→', 1]],
+    ];
+    const U = 46, G = 5, col = { move: '#f2d21b', off: '#ff8a3d', pass: '#58b7ff', def: '#b28cff', game: '#4fd17a' };
+    let svg = '', y = 14, maxW = 0;
+    for (const r of rows) {
+      let x = 14;
+      for (const [code, lab, w = 1] of r) {
+        const W = w * U + (w - 1) * G, R = role[code], c = R ? col[R.g] : null;
+        svg += `<g><rect x="${x}" y="${y + 3}" width="${W}" height="${U}" rx="8" fill="#05070a"/><rect x="${x}" y="${y}" width="${W}" height="${U}" rx="8" fill="${c ? c : '#1b222b'}" ${c ? '' : 'stroke="#2c3642"'} stroke-width="1.5"/>
+          <rect x="${x + 4}" y="${y + 3}" width="${W - 8}" height="${U - 12}" rx="6" fill="${c ? 'rgba(255,255,255,0.18)' : '#232c37'}"/>
+          <text x="${x + 9}" y="${y + 20}" font-size="${lab.length > 2 ? 12 : 16}" font-weight="800" fill="${c ? '#111' : '#c9d1d9'}" font-family="Barlow Semi Condensed, Arial, sans-serif">${esc(lab)}</text>
+          ${R && R.t && !small ? `<text x="${x + W / 2}" y="${y + U - 8}" text-anchor="middle" font-size="${W > 120 ? 10 : 7.6}" font-weight="800" fill="#111" font-family="Barlow Semi Condensed, Arial, sans-serif" letter-spacing="0.2">${esc(R.t.length > 7 && W < 90 ? R.t.split(' · ')[0] : R.t)}</text>` : ''}</g>`;
+        x += W + G;
+      }
+      maxW = Math.max(maxW, x); y += U + G;
+    }
+    const Wt = maxW + 10, Ht = y + 14, Hv = small ? Ht : Ht + 28;
+    return `<svg class="ob-kb" viewBox="0 0 ${Wt} ${Hv}" role="img" aria-label="Keyboard with the Tumble Bowl keys highlighted"><rect x="2" y="2" width="${Wt - 4}" height="${Ht - 4}" rx="16" fill="#0c1016" stroke="#2c3642" stroke-width="2"/><rect x="2" y="2" width="${Wt - 4}" height="10" rx="5" fill="#1a2028"/>${svg}
+      ${small ? '' : `<g font-family="Barlow Semi Condensed, Arial, sans-serif" font-size="12" font-weight="700">${Object.entries(col).map(([g, c], i) => `<rect x="${16 + i * 120}" y="${Ht - 2}" width="12" height="12" rx="3" fill="${c}"/><text x="${32 + i * 120}" y="${Ht + 8}" fill="#c9d1d9">${{ move: 'Move', off: 'Run & hit', pass: 'Pass & catch', def: 'Switch', game: 'Game' }[g]}</text>`).join('')}</g>`}</svg>`;
+  },
+  mouseSVG(small) {
+    return `<svg class="ob-mouse" viewBox="0 0 180 260" role="img" aria-label="Gaming mouse"><defs><linearGradient id="obMs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a323d"/><stop offset="1" stop-color="#0d1117"/></linearGradient></defs>
+      <path d="M90 10 C40 10 22 60 22 120 C22 200 50 250 90 250 C130 250 158 200 158 120 C158 60 140 10 90 10 Z" fill="url(#obMs)" stroke="#3a4552" stroke-width="2.5"/>
+      <path d="M90 12 L90 104" stroke="#05070a" stroke-width="3"/><path d="M24 104 C40 98 140 98 156 104" stroke="#05070a" stroke-width="2.5" fill="none"/>
+      <path d="M88 12 C46 14 26 52 24 102 L88 102 Z" fill="#f2d21b" opacity="0.9"/><path d="M92 12 C134 14 154 52 156 102 L92 102 Z" fill="#58b7ff" opacity="0.85"/>
+      <rect x="82" y="40" width="16" height="36" rx="8" fill="#0c1016" stroke="#4fd17a" stroke-width="3"/><rect x="86" y="48" width="8" height="10" rx="3" fill="#4fd17a"/>
+      <path d="M40 150 C60 140 120 140 140 150" stroke="#e5322d" stroke-width="3" fill="none" opacity="0.8"/><circle cx="34" cy="132" r="4" fill="#2c3642"/><circle cx="34" cy="148" r="4" fill="#2c3642"/>
+      ${small ? '' : `<g font-family="Barlow Semi Condensed, Arial, sans-serif" font-size="12" font-weight="800"><text x="50" y="92" fill="#111">LEFT</text><text x="104" y="92" fill="#111">RIGHT</text><text x="64" y="132" fill="#4fd17a">WHEEL · ZOOM</text><text x="44" y="200" fill="#c9d1d9">DRAG: TURN CAMERA</text></g>`}</svg>`;
+  },
+  phoneSVG(small) {
+    // the real touch layout: joystick on the left, the action cluster on the right, receivers and lob above it,
+    // timeout / camera / pause along the top (drawn in a phone held upright)
+    const btn = (cx, cy, r, t, hot) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${hot ? 'rgba(242,210,27,0.9)' : 'rgba(9,14,20,0.7)'}" stroke="${hot ? '#f2d21b' : 'rgba(238,241,234,0.55)'}" stroke-width="2"/><text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="${r > 26 ? 13 : 9.5}" font-weight="900" fill="${hot ? '#111' : '#eef1ea'}" font-family="Big Shoulders Display, Impact, sans-serif">${t}</text>`;
+    const field = Array.from({ length: 8 }, (_, i) => `<line x1="34" x2="266" y1="${150 + i * 42}" y2="${150 + i * 42}" stroke="rgba(255,255,255,0.55)" stroke-width="${i === 4 ? 3 : 1.5}"/>`).join('');
+    const ppl = [[150, 300, '#1b2c5e'], [118, 286, '#1b2c5e'], [184, 286, '#1b2c5e'], [150, 262, '#c0262d'], [100, 250, '#c0262d'], [204, 246, '#c0262d'], [150, 336, '#1b2c5e']].map(([x, y, c]) => `<circle cx="${x}" cy="${y}" r="8" fill="${c}" stroke="#fff" stroke-width="1.5"/>`).join('');
+    return `<svg class="ob-phone" viewBox="0 0 300 600" role="img" aria-label="Phone showing the Tumble Bowl touch controls">
+      <rect x="10" y="6" width="280" height="588" rx="42" fill="#05070a" stroke="#3a4552" stroke-width="3"/><rect x="24" y="22" width="252" height="556" rx="30" fill="#2f7d2c"/>
+      <rect x="24" y="22" width="252" height="556" rx="30" fill="url(#obTurf)"/><defs><linearGradient id="obTurf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b8f35"/><stop offset="1" stop-color="#2a6e27"/></linearGradient></defs>
+      ${field}${ppl}<circle cx="150" cy="292" r="4" fill="#8a4a1c"/>
+      <rect x="112" y="16" width="76" height="16" rx="8" fill="#05070a"/>
+      <rect x="40" y="40" width="220" height="30" rx="6" fill="rgba(9,14,20,0.85)"/><text x="52" y="60" font-size="13" font-weight="900" fill="#fff" font-family="Big Shoulders Display, Impact, sans-serif">HOME 7</text><text x="150" y="60" text-anchor="middle" font-size="11" fill="#f2d21b" font-family="Big Shoulders Display, Impact, sans-serif">2ND & 6</text><text x="248" y="60" text-anchor="end" font-size="13" font-weight="900" fill="#fff" font-family="Big Shoulders Display, Impact, sans-serif">AWAY 3</text>
+      <g>${[['TO', 150], ['CAM', 196], ['II', 242]].map(([t, x]) => `<rect x="${x - 18}" y="82" width="36" height="28" rx="7" fill="rgba(9,14,20,0.7)" stroke="rgba(238,241,234,0.5)"/><text x="${x}" y="101" text-anchor="middle" font-size="11" font-weight="900" fill="#eef1ea" font-family="Big Shoulders Display, Impact, sans-serif">${t}</text>`).join('')}</g>
+      <circle cx="80" cy="490" r="48" fill="rgba(9,14,20,0.4)" stroke="rgba(238,241,234,0.55)" stroke-width="2"/><circle cx="92" cy="480" r="21" fill="rgba(238,241,234,0.9)"/>
+      ${small ? '' : '<text x="80" y="552" text-anchor="middle" font-size="10" font-weight="800" fill="#fff" font-family="Barlow Semi Condensed, Arial, sans-serif">MOVE · EDGE = SPRINT</text>'}
+      <g>${[1, 2, 3, 4, 5].map((n, i) => btn(150 + i * 24, 382, 10, n, false)).join('')}<rect x="270" y="372" width="0" height="0"/></g>
+      ${btn(246, 412, 13, 'LOB', false)}
+      ${btn(240, 520, 34, 'JUKE', true)}${btn(186, 540, 20, 'STIFF', false)}${btn(248, 460, 20, 'DIVE', false)}${btn(196, 488, 20, 'TRUCK', false)}${btn(140, 528, 18, 'HURDLE', false)}${btn(160, 452, 18, 'SWITCH', false)}
+    </svg>`;
+  },
+  padSVG(small) {
+    const lab = (x, y, t, a = 'start', c = '#eef1ea') => small ? '' : `<text x="${x}" y="${y}" text-anchor="${a}" font-size="13" font-weight="800" fill="${c}" font-family="Barlow Semi Condensed, Arial, sans-serif">${t}</text>`;
+    const line = (x1, y1, x2, y2) => small ? '' : `<path d="M${x1} ${y1} L${x2} ${y2}" stroke="rgba(238,241,234,0.45)" stroke-width="1.5" fill="none"/>`;
+    const P = TUT_KEYS.pad();
+    return `<svg class="ob-pad" viewBox="${small ? '120 40 560 380' : '0 0 800 470'}" role="img" aria-label="Xbox-style controller with each button labeled"><defs><linearGradient id="obPadG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b333e"/><stop offset="1" stop-color="#0e1218"/></linearGradient><radialGradient id="obStick" cx="0.4" cy="0.35" r="0.7"><stop offset="0" stop-color="#3a4552"/><stop offset="1" stop-color="#090c10"/></radialGradient></defs>
+      <path d="M262 112 C230 112 214 120 206 132 L196 150 C150 160 138 214 130 266 C120 330 112 382 150 398 C186 412 214 368 244 330 C258 312 280 304 300 304 L500 304 C520 304 542 312 556 330 C586 368 614 412 650 398 C688 382 680 330 670 266 C662 214 650 160 604 150 L594 132 C586 120 570 112 538 112 Z" fill="url(#obPadG)" stroke="#3a4552" stroke-width="3"/>
+      <path d="M210 128 C220 104 250 96 290 98 L302 112 L216 134 Z" fill="#58b7ff" opacity="0.9"/><path d="M590 128 C580 104 550 96 510 98 L498 112 L584 134 Z" fill="#58b7ff" opacity="0.9"/>
+      <path d="M232 100 C236 70 270 62 292 70 L292 98 C270 96 246 98 232 100 Z" fill="#f2d21b"/><path d="M568 100 C564 70 530 62 508 70 L508 98 C530 96 554 98 568 100 Z" fill="#f2d21b"/>
+      <circle cx="400" cy="158" r="22" fill="#0b0f14" stroke="#4fd17a" stroke-width="2.5"/><path d="M392 152 L408 164 M408 152 L392 164" stroke="#4fd17a" stroke-width="3"/>
+      <rect x="350" y="196" width="22" height="14" rx="7" fill="#0b0f14" stroke="#c9d1d9" stroke-width="1.5"/><rect x="428" y="196" width="22" height="14" rx="7" fill="#0b0f14" stroke="#c9d1d9" stroke-width="1.5"/>
+      <circle cx="262" cy="198" r="38" fill="#05070a"/><circle cx="262" cy="198" r="29" fill="url(#obStick)" stroke="#f2d21b" stroke-width="3"/>
+      <circle cx="476" cy="268" r="34" fill="#05070a"/><circle cx="476" cy="268" r="25" fill="url(#obStick)" stroke="#b28cff" stroke-width="3"/>
+      <g transform="translate(330 268)"><rect x="-12" y="-36" width="24" height="72" rx="5" fill="#141a21" stroke="#3a4552"/><rect x="-36" y="-12" width="72" height="24" rx="5" fill="#141a21" stroke="#3a4552"/><circle r="6" fill="#0b0f14"/></g>
+      ${[['A', 548, 236, '#4fd17a'], ['B', 584, 200, '#e5322d'], ['X', 512, 200, '#58b7ff'], ['Y', 548, 164, '#f2d21b']].map(([t, x, y, c]) => `<circle cx="${x}" cy="${y}" r="19" fill="#0b0f14" stroke="${c}" stroke-width="3"/><text x="${x}" y="${y + 6}" text-anchor="middle" font-size="17" font-weight="900" fill="${c}" font-family="Arial, sans-serif">${t}</text>`).join('')}
+      ${lab(14, 56, 'LT · Showboat')}${line(120, 52, 250, 78)}
+      ${lab(14, 92, 'LB · Hurdle / Lob / Swat (+B)')}${line(214, 96, 230, 112)}
+      ${lab(14, 196, 'Left stick · Move  (L3: Timeout)')}${line(196, 192, 228, 196)}
+      ${lab(14, 300, 'D-pad · Move / Menus')}${line(150, 296, 294, 270)}
+      ${lab(14, 352, 'View · Change play')}${line(150, 348, 352, 206)}
+      ${lab(786, 56, 'RT · ' + P.sprint.replace('RT', 'Sprint'), 'end')}${line(680, 52, 550, 78)}
+      ${lab(786, 92, 'RB · Truck / Hit · WR 5', 'end')}${line(604, 96, 572, 112)}
+      ${lab(786, 150, 'Y · Dive · WR 2', 'end', '#f2d21b')}${line(640, 146, 568, 162)}
+      ${lab(786, 186, 'B · Stiff / Catch · WR 3', 'end', '#e5322d')}${line(640, 192, 604, 200)}
+      ${lab(786, 230, 'A · Snap / Switch / Mash · WR 4', 'end', '#4fd17a')}${line(640, 236, 568, 236)}
+      ${lab(786, 274, 'X · Juke / Tackle · WR 1', 'end', '#58b7ff')}${line(640, 270, 532, 206)}
+      ${lab(786, 330, 'Right stick · Flick to switch (R3: Play art)', 'end', '#b28cff')}${line(600, 326, 502, 276)}
+      ${lab(786, 372, 'Menu · Pause', 'end')}${line(680, 368, 450, 206)}
+    </svg>`;
+  },
+
+  /* ---------- Controls View (Settings) ---------- */
+  openControls() {
+    this.mode = 'controls'; this.ctl = 'desktop'; this.ctlBig = 'desktop';   // desktop first, selected by default
+    this.shell(); this.renderControls();
+  },
+  renderControls() {
+    const el = this.shell();
+    el.innerHTML = `<div class="ob-bg dim"></div><div class="ob-card wide"><header class="ob-head row"><button class="ob-btn ob-gh sm" id="obCvBack">‹ Back to Settings</button><div><div class="ob-eyebrow">Settings</div><h2 class="ob-title">Controls view</h2></div></header>
+      ${this.ctlDetail(this.ctlBig || 'desktop', false)}<p class="ob-note">These are your current controls. Key choices you make in Settings show up here right away.</p></div>`;
+    this.wireCtl(el, () => this.renderControls());
+    el.querySelector('#obCvBack').onclick = () => { Sfx.click && Sfx.click(); this.closeControls(); };
+    const t = el.querySelector('.ob-tabs button.on'); if (t) t.focus({ preventScroll: true });
+  },
+  closeControls() { this.close(); const b = document.getElementById('pCtlView'); if (b) b.focus(); },
+
+  /* ---------- announcements ---------- */
+  /* now and then on loading into the menu: never twice in one visit, at most about once a day, sooner when
+     there's an announcement you haven't seen */
+  maybeNews(force) {
+    if (this.newsShown || this.isOpen() || !Game.attract || Game.paused || document.getElementById('tbWelcome') || (typeof Splash !== 'undefined' && Splash.open)) return;
+    const S = this.S(); if (S.onboarded === false) return;
+    const ov = document.getElementById('ovMenu'); if (!ov || ov.hidden || UI.menuView !== 'home') return;
+    const seen = S.newsSeen || [], unseen = ONBOARD_NEWS.some(n => !seen.includes(n.id)), last = S.newsLast || 0, now = Date.now();
+    if (!force && !(unseen ? now - last > 2 * 3600e3 : now - last > 22 * 3600e3)) return;
+    if (!force && !unseen && Math.random() < 0.5) { S.newsLast = now; Game.saveSettings(); return; }
+    this.newsShown = true;
+    this.openNews(Math.max(0, ONBOARD_NEWS.findIndex(n => !seen.includes(n.id))));
+  },
+  openNews(i) {
+    this.mode = 'news'; this.ni = i || 0; this.shell();
+    const S = this.S(); S.newsLast = Date.now(); Game.saveSettings();
+    const el = this.el;
+    el.innerHTML = `<div class="ob-bg dim blur"></div><div class="ob-news" role="document"><button class="ob-x" id="obNx" aria-label="Close">✕</button>
+      <div class="ob-track">${ONBOARD_NEWS.map((n, k) => `<article class="ob-slide" data-k="${k}" aria-hidden="true">${this.pic(n.shot, n.handle ? `<div class="ob-handle">${esc(n.handle)}</div>` : '')}<div class="ob-ntxt"><div class="ob-eyebrow y">Tumble Bowl · ${k + 1} / ${ONBOARD_NEWS.length}</div><h2>${esc(n.head)}</h2><p>${esc(n.body)}</p><button class="ob-btn ob-go" data-act="${n.act}">${esc(n.btn)}</button><p class="ob-msg" id="obMsg${k}" role="status"></p></div></article>`).join('')}</div>
+      <nav class="ob-dots"><button class="ob-arr" id="obPrev" aria-label="Previous announcement">‹</button>${ONBOARD_NEWS.map((n, k) => `<button class="ob-dot" data-dot="${k}" aria-label="Announcement ${k + 1}: ${esc(n.head)}"></button>`).join('')}<button class="ob-arr" id="obNextN" aria-label="Next announcement">›</button></nav></div>`;
+    el.querySelector('#obNx').onclick = () => { Sfx.click && Sfx.click(); this.close(); };
+    el.querySelector('#obPrev').onclick = () => this.newsGo(this.ni - 1);
+    el.querySelector('#obNextN').onclick = () => this.newsGo(this.ni + 1);
+    el.querySelectorAll('[data-dot]').forEach(b => b.onclick = () => this.newsGo(+b.dataset.dot));
+    el.querySelectorAll('[data-act]').forEach(b => b.onclick = () => this.newsAct(b.dataset.act, b));
+    el.querySelector('.ob-bg').onclick = () => this.close();
+    this.newsGo(this.ni, true);
+  },
+  newsGo(i, first) {
+    if (this.mode !== 'news' || !this.el) return;
+    const n = ONBOARD_NEWS.length; this.ni = (i + n) % n;
+    this.el.querySelectorAll('.ob-slide').forEach((s, k) => { s.classList.toggle('on', k === this.ni); s.setAttribute('aria-hidden', k !== this.ni); s.querySelectorAll('button').forEach(b => b.tabIndex = k === this.ni ? 0 : -1); });
+    this.el.querySelectorAll('.ob-dot').forEach((d, k) => { d.classList.toggle('on', k === this.ni); d.setAttribute('aria-current', k === this.ni); });
+    const S = this.S(), id = ONBOARD_NEWS[this.ni].id; S.newsSeen = S.newsSeen || []; if (!S.newsSeen.includes(id)) { S.newsSeen.push(id); Game.saveSettings(); }
+    if (!first) Sfx.click && Sfx.click();
+    const b = this.el.querySelector('.ob-slide.on [data-act]'); if (b && !first) b.focus({ preventScroll: true });
+  },
+  newsAct(a, b) {
+    Sfx.click && Sfx.click();
+    const msg = this.el && this.el.querySelector('#obMsg' + this.ni);
+    if (a === 'share') {
+      const url = location.href.split('#')[0], data = { title: 'Tumble Bowl', text: 'Play Tumble Bowl, physics football!', url };
+      if (navigator.share) { navigator.share(data).catch(() => { }); return; }
+      const ok = () => { if (msg) msg.textContent = 'Link copied! Paste it to your friends.'; };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, () => { if (msg) msg.textContent = url; });
+      else if (msg) msg.textContent = url;
+      return;
+    }
+    if (a === 'tiktok') { window.open(ONBOARD_NEWS.find(n => n.act === 'tiktok').url, '_blank', 'noopener'); return; }
+    this.close();
+    if (a === 'modes') { UI.title(); setTimeout(() => { const m = document.querySelector('#ovMenu .mode'); if (m) { m.focus(); m.scrollIntoView({ block: 'center', behavior: 'smooth' }); } const L = document.querySelector('#ovMenu .modes'); if (L) { L.classList.add('ob-flash'); setTimeout(() => L.classList.remove('ob-flash'), 1600); } }, 80); }
+    else if (a === 'tutorials') UI.title('tutorial');
+    else if (a === 'news') setTimeout(() => this.openNewsPage(), 340);
+  },
+  openNewsPage() {
+    this.mode = 'newspage'; const el = this.shell();
+    el.innerHTML = `<div class="ob-bg dim blur"></div><div class="ob-card wide"><header class="ob-head row"><button class="ob-btn ob-gh sm" id="obNpBack">‹ Main menu</button><div><div class="ob-eyebrow">Tumble Bowl</div><h2 class="ob-title">Latest news</h2></div></header>
+      <div class="ob-newsgrid">${this.pic('end')}<ul class="ob-newslist">${TB_NEWS.map(n => `<li><small>${esc(n.date)}</small><b>${esc(n.head)}</b><p>${esc(n.body)}</p></li>`).join('')}</ul></div>
+      <p class="ob-note">Follow <a href="https://www.tiktok.com/@tumble.bowl" target="_blank" rel="noopener">@tumble.bowl</a> on TikTok for previews of what's next.</p></div>`;
+    el.querySelector('#obNpBack').onclick = () => { Sfx.click && Sfx.click(); this.close(); };
+    el.querySelector('.ob-bg').onclick = () => this.close();
+    el.querySelector('#obNpBack').focus({ preventScroll: true });
+  },
+};
 const Game = {
   mode: null, world: null, match: null, humans: [], paused: false, debug: false,
   get camMode() { return Cam.mode(); },   // read-only: Cam owns the camera mode
@@ -31904,6 +32460,7 @@ const Game = {
   settings: Object.assign({ team: 0, opp: 'cpu', diff: 'pro', qLen: 3, weather: 'clear', night: true, pside: 'off', pdef: true, pyard: 30, uniform: 'home', battles: true, mashKey: 'Space', truckKey: 'KeyI', celebWheel: true, celebKey: 'KeyC', celebQuick: 'KeyX', camOff: 'auto', camDef: 'offview', camKey: 'KeyV', camCareer: 'player' }, store.get('hardcount.settings', {})),
   devs: null,
   init() {
+    Onboard.hadSettings = store.raw('hardcount.settings') != null;   // an existing player skips the first-time setup
     Gfx.init($('game'));
     this.devs = { kb1: new Device(KB1, 0), kb2: new Device(KB2, 1) };
     TouchPad.init(); TouchPad.on = TouchPad.available();
@@ -33572,9 +34129,10 @@ const UI = {
     this.settingsOnly = !!asSettings;
     const seg = (id, opts, cur) => `<div class="seg" id="${id}">${opts.map(([v, l]) => `<button data-v="${v}" class="${v === cur ? 'on' : ''}">${l}</button>`).join('')}</div>`;
     ov.innerHTML = `<div class="sheet" style="width:min(520px,100%)"><h2>Paused</h2><p class="sub">${G.mode === 'sandbox' ? 'Physics sandbox' : G.match ? `${G.match.teamDefs[0].abbr} ${G.match.score[0]} – ${G.match.score[1]} ${G.match.teamDefs[1].abbr}` : ''}</p>
+      <div class="row2"><button class="ghost" id="pCtlView">Controls view</button>${asSettings ? '<button class="ghost" id="pSetup">Redo first-time setup</button>' : ''}</div>
       ${Cam.career() ? `<div class="field"><label>Road to the League camera</label>${seg('pCamC', Cam.CAREER_CAMS, Cam.careerMode(G.settings.camCareer))}</div>` : ''}
       ${RoadCtl.html(seg)}
-      <div class="field vol-f"><label>Sound</label><div class="vols">${[['volMaster', 'Master'], ['volMusic', 'In-game music (band)'], ['volMenu', 'Menu music'], ['volCrowd', 'Crowd'], ['volSfx', 'Sound effects']].map(([k, n]) => { const v = Math.round((G.settings[k] == null ? 1 : G.settings[k]) * 100); return `<label class="vol"><span>${n}</span><input type="range" min="0" max="100" step="1" value="${v}" data-vol="${k}" aria-label="${n} volume"><b>${v}</b></label>`; }).join('')}</div></div>
+      <div class="field vol-f"><label>Sound</label><div class="vols">${[['volMaster', 'Master'], ['volMusic', 'In-game music (band)'], ['volMenu', 'Menu music'], ['volCrowd', 'Crowd'], ['volSfx', 'Sound effects'], ['volComm', 'Commentary']].map(([k, n]) => { const v = Math.round((G.settings[k] == null ? 1 : G.settings[k]) * 100); return `<label class="vol"><span>${n}</span><input type="range" min="0" max="100" step="1" value="${v}" data-vol="${k}" aria-label="${n} volume"><b>${v}</b></label>`; }).join('')}</div></div>
       <div class="field"><label>Offense camera</label>${seg('pCamO', Cam.list('off').map(k => [k, CAM_MODES[k].short]), G.settings.camOff)}</div>
       <div class="field"><label>Defense camera</label>${seg('pCamD', Cam.list('def').map(k => [k, CAM_MODES[k].short]), G.settings.camDef)}</div>
       <div class="field"><label>Sideline cutscenes</label>${seg('pCut', [['on', 'On'], ['off', 'Off']], G.settings.cutscenes === false ? 'off' : 'on')}</div>
@@ -33622,6 +34180,8 @@ const UI = {
     bind('pCk', v => { G.settings.celebKey = v; if (G.settings.celebQuick === v) G.settings.celebQuick = 'KeyX'; G.saveSettings(); });
     bind('pCq', v => { G.settings.celebQuick = v; G.saveSettings(); });
     $('pRes').onclick = () => this.togglePause();
+    $('pCtlView').onclick = () => { Sfx.click && Sfx.click(); Onboard.openControls(); };
+    if ($('pSetup')) $('pSetup').onclick = () => { Sfx.click && Sfx.click(); this.togglePause(); Onboard.start(() => UI.title()); };
     if ($('pRst')) $('pRst').onclick = () => { this.togglePause(); G.restart(); };
     if ($('pQuit')) $('pQuit').onclick = () => { this.togglePause(); G.toMenu(); };
   },
@@ -33770,12 +34330,14 @@ const UI = {
     if (this.menuView === 'home') {
       ov.innerHTML = `<div class="mhome ${prevView === 'mode' ? 'from-mode' : ''}"><div class="mark"><div class="eyebrow">Physics football · 11 on 11</div><h1>Tumble<br><em>Bowl</em></h1><p>Every block, cut, throw and tackle is solved by the physics engine. Momentum decides who falls; the ball flies, spins and bounces on its own.</p></div>
       <div class="modes" role="list">${modes.map(([id, n, d], i) => `<button class="mode" role="listitem" data-m="${id}" style="--i:${i}"><span class="ix">${ico(id)}</span><span><b>${n}</b><span>${d}</span></span><i class="go-ar" aria-hidden="true">›</i></button>`).join('')}</div>
-      <div class="mfoot"><p class="note touchnote">Tumble Bowl is played with a keyboard or a gamepad.</p><p class="cloudb" id="cloudBadge" role="status"></p><div class="cloudbtns"><button class="ghost" id="saveBackup">Back up saves</button><button class="ghost" id="saveRestore">Restore saves</button></div></div></div>`;
+      <div class="mfoot"><p class="note touchnote">Tumble Bowl is played with a keyboard or a gamepad.</p><p class="cloudb" id="cloudBadge" role="status"></p><div class="cloudbtns"><button class="ghost" id="newsBtn">News</button><button class="ghost" id="saveBackup">Back up saves</button><button class="ghost" id="saveRestore">Restore saves</button></div></div></div>`;
     } else {
       ov.innerHTML = `<div class="mscreen ${prevView === 'mode' ? '' : 'enter'}" data-mode="${this.menuSel}"><header class="ms-head"><button class="ms-back" id="menuBack" aria-label="Back to the main menu"><span aria-hidden="true">‹</span> Back</button><div class="ms-title"><div class="eyebrow">${ico(cur[0])} Game mode</div><h2>${cur[1]}</h2><p>${cur[2]}</p></div></header>
       <div class="ms-body"><div class="setup">${setup}</div><details class="ms-sec ms-more"><summary>Controls</summary>${keysHTML}</details></div></div>`;
     }
     if (typeof CloudSave !== 'undefined') CloudSave.badge(CloudSave.status);
+    if ($('newsBtn')) $('newsBtn').onclick = () => { Sfx.click && Sfx.click(); Onboard.openNewsPage(); };
+    if (this.menuView === 'home' && typeof Onboard !== 'undefined') setTimeout(() => Onboard.maybeNews(), 1500);   // now and then: an announcement
     if ($('saveBackup')) $('saveBackup').onclick = async () => { const r = await CloudSave.backup(); const el = $('cloudBadge'); if (el && r === 'failed') el.textContent = 'Backup could not be saved here'; };
     if ($('saveRestore')) $('saveRestore').onclick = async () => { const r = await CloudSave.restore(); const el = $('cloudBadge'); if (el) el.textContent = typeof r === 'number' ? `Restored ${r} saves` : r === 'bad' ? 'That file is not a Tumble Bowl backup' : el.textContent; };
     ov.querySelectorAll('.mode').forEach(b => b.onclick = () => { Sfx.init(); Sfx.click && Sfx.click(); this.title(b.dataset.m); const f = ov.querySelector('#menuBack'); if (f) f.focus({ preventScroll: true }); });   // each mode opens on its own screen
@@ -33819,6 +34381,7 @@ const UI = {
   /* console-style menu navigation: the D-pad or stick moves between buttons, A presses, B goes back */
   menuPad() {
     const ov = $('ovMenu'); if (!ov || ov.hidden || !Game.attract) return;
+    if (typeof Onboard !== 'undefined' && Onboard.isOpen()) return;
     for (const id of ['ovTeams', 'ovCustom', 'ovPause']) { const e = $(id); if (e && !e.hidden && e.childElementCount) return; }
     const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(g => g) : null; if (!gp) return;
     const B = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed), ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
