@@ -399,6 +399,48 @@ body:not(:has(#ovMenu:not([hidden]))) .tb-chip { display: none; }
 .ob-bigart { background: radial-gradient(ellipse at 50% 30%, rgba(88,183,255,0.08), rgba(0,0,0,0) 70%); border-radius: 12px; display: flex; align-items: center; justify-content: center; min-width: 0; }
 .ob-desk { display: flex; align-items: flex-end; gap: 14px; width: 100%; } .ob-desk .ob-kb { flex: 1; min-width: 0; height: auto; } .ob-desk .ob-mouse { width: 15%; min-width: 70px; height: auto; }
 .ob-bigart .ob-phone { width: min(100%, 340px); height: auto; } .ob-bigart .ob-pad { width: 100%; height: auto; }
+/* controller: button glyphs, receiver icons, prompts, the interactive diagram */
+.pg { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 6px; background: #10151b; border: 1.5px solid #8b96a3; color: #e6ebf0; font: 900 11.5px/1 Arial, sans-serif; font-style: normal; letter-spacing: 0; vertical-align: middle; box-sizing: border-box; }
+.pg.pg-face { width: 22px; padding: 0; border-radius: 50%; border: 2px solid var(--pc); color: var(--pc); font-size: 12.5px; box-shadow: 0 0 0 1px rgba(0,0,0,0.5); }
+.pg.pg-w { font-size: 9.5px; }
+.hint .row.pad { gap: 6px 14px; align-items: center; }
+.tag.pt { padding: 2px; border-width: 2px; border-radius: 50%; background: rgba(9,14,20,0.75); line-height: 0; }
+.tag.pt .pg { width: 30px; min-width: 30px; height: 30px; font-size: 16px; border-width: 3px; }
+.tag.pt.open { box-shadow: 0 0 10px rgba(79,209,122,0.75); }
+.tag.pp { background: rgba(9,14,20,0.86); border: 1px solid rgba(242,210,27,0.65); color: #f2d21b; font: 800 12px var(--f-display); letter-spacing: 0.08em; padding: 3px 8px; border-radius: 999px; display: flex; gap: 5px; align-items: center; animation: ppin 0.18s ease-out; }
+.tag.pp .pg { width: 19px; min-width: 19px; height: 19px; font-size: 11px; }
+@keyframes ppin { from { opacity: 0; transform: translate(-50%, -80%); } to { opacity: 1; transform: translate(-50%, -100%); } }
+.pad-view { display: flex; flex-direction: column; gap: 12px; }
+.pv-cats { display: flex; flex-wrap: wrap; gap: 6px; }
+.pv-cats button { flex: 1 1 auto; background: #141a21; border: 1px solid #2c3642; color: #c9d1d9; border-radius: 999px; padding: 7px 12px; font: 800 13px var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; width: auto; }
+.pv-cats button.on { background: var(--yellow); color: #15171a; border-color: var(--yellow); }
+.pv-cats button:focus-visible, .pv-row:focus-visible { outline: 2px solid #58b7ff; outline-offset: 2px; }
+.pv-main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.pv-art { background: radial-gradient(ellipse at 50% 40%, #18222e, #06090d 75%); border: 1px solid #222c37; border-radius: 14px; padding: 6px; }
+.pv-art .ob-pad { width: 100%; height: auto; display: block; }
+.pv-scheme { font-size: 12px; color: var(--dim); text-align: center; padding: 2px 0 6px; } .pv-scheme b { color: #eef1ea; }
+.pad-int .pb { cursor: pointer; outline: none; transition: opacity 0.15s; }
+.pad-int .pb .pb-ring { transition: stroke 0.15s, filter 0.15s; }
+.pad-int .pb:not(.hl) { opacity: 0.38; }
+.pad-int .pb.hl .pb-ring { filter: drop-shadow(0 0 6px rgba(242,210,27,0.75)); }
+.pad-int .pb.hl:not([data-btn="A"]):not([data-btn="B"]):not([data-btn="X"]):not([data-btn="Y"]) .pb-ring { stroke: #f2d21b; }
+.pad-int .pb.sel { opacity: 1; } .pad-int .pb.sel .pb-ring { stroke: #fff !important; stroke-width: 4; filter: drop-shadow(0 0 10px #fff); }
+.pad-int .pb:hover, .pad-int .pb:focus { opacity: 1; } .pad-int .pb:focus .pb-ring { stroke: #58b7ff !important; }
+.pv-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pv-info { background: #0d1218; border: 1px solid #2c3642; border-left: 3px solid var(--yellow); border-radius: 10px; padding: 10px 12px; min-height: 92px; }
+.pv-info .pi-tip { margin: 0; color: var(--dim); font-size: 13.5px; }
+.pi-h { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; } .pi-h b { font: 900 17px var(--f-display); letter-spacing: 0.05em; text-transform: uppercase; }
+.pi-r { margin: 5px 0; } .pi-r > span { display: block; font: 800 10.5px var(--f-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--yellow); }
+.pi-r p { margin: 1px 0 0; font-size: 13.5px; line-height: 1.4; color: #e6ebf0; } .pi-r ul { margin: 2px 0 0; padding-left: 16px; font-size: 12.5px; color: #cfd7d0; } .pi-r em { font-style: normal; color: var(--dim); margin-right: 4px; }
+.pv-list { display: flex; flex-direction: column; gap: 3px; max-height: 260px; overflow: auto; }
+.pv-row { display: flex; align-items: center; gap: 9px; text-align: left; background: rgba(255,255,255,0.03); border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; color: #e6ebf0; font-size: 13px; cursor: pointer; width: 100%; }
+.pv-row:hover, .pv-row.on { border-color: rgba(242,210,27,0.55); background: rgba(242,210,27,0.07); }
+.pi-tr { background: rgba(255,255,255,0.03); border: 1px solid #2c3642; border-radius: 10px; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; }
+.pi-tr b { width: 100%; font: 800 11px var(--f-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--yellow); } .pi-tr small { width: 100%; color: var(--dim); font-size: 11.5px; }
+.field.pad-set { display: block; } .field.pad-set > label { display: block; margin-bottom: 6px; } .pad-set .row2 { margin-top: 8px; }
+.pad-set input[type=range] { width: min(220px, 100%); accent-color: var(--yellow); }
+.pad-set .rs-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 6px 0; } .pad-set .rs-row > span { font-size: 14px; color: #cfd7d0; } .pad-set .rs-row small { color: var(--dim); } .pad-set label small.ok { color: var(--good); }
+@media (max-width: 760px) { .pv-main { grid-template-columns: 1fr; } .pv-cats button { font-size: 11.5px; padding: 6px 9px; } }
 .ob-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
 .ob-legend section { background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
 .ob-legend h4 { margin: 0 0 6px; font: 900 14px var(--f-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--yellow); }
@@ -9092,6 +9134,7 @@ if (typeof window !== 'undefined') {
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Quote', 'Slash', 'Enter'].includes(e.code)) e.preventDefault();   // ' and / open quick-find in some browsers
     if (e.ctrlKey && typeof RoadCtl !== 'undefined' && RoadCtl.active() && ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'KeyQ', 'KeyJ', 'KeyK', 'KeyL'].includes(e.code)) e.preventDefault();   // Ctrl is the Shift Lock key in a Road game: Ctrl+S / Ctrl+D shouldn't save or bookmark the page
     if (!Keys.down.has(e.code)) Keys.q.push(e.code);
+    Keys.lastT = performance.now();
     Keys.down.add(e.code);
   });
   window.addEventListener('keyup', (e) => { Keys.down.delete(e.code); });
@@ -9103,6 +9146,251 @@ const KB1_ARROWS = { up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left:
    . juke/tackle  / stiff-arm/catch  ' dive  Enter snap/switch/mash  , lob  [ truck/shoulder hit  ] hurdle
    ; jump ball  \ change play  - timeout  6 7 8 9 0 throw to receivers 1-5 */
 const KB2 = { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], sprint: ['ShiftRight'], a: ['Numpad1', 'Period'], b: ['Numpad2', 'Slash'], c: ['Numpad3', 'Quote'], sw: ['Numpad0', 'Enter'], lob: ['Numpad9', 'NumpadAdd', 'Comma'], tr: ['NumpadSubtract', 'BracketLeft'], hu: ['NumpadMultiply', 'BracketRight'], chg: ['NumpadDecimal', 'Backslash'], mash: ['Numpad0', 'Enter'], jump: ['NumpadEnter', 'Semicolon'], to: ['NumpadDivide', 'Minus'], show: ['Equal'], recv: [['Numpad4', 'Digit6'], ['Numpad5', 'Digit7'], ['Numpad6', 'Digit8'], ['Numpad7', 'Digit9'], ['Numpad8', 'Digit0']], call: ['Numpad1', 'Numpad2', 'Numpad3', 'Numpad4', 'Numpad5', 'Numpad6', 'Numpad7', 'Numpad8', 'Numpad9'] };
+
+/* ============================================================
+   CONTROLLER — the Madden-style gamepad layout. The same button does the obvious thing for whoever you
+   control right now (quarterback, ball carrier, receiver, defender, lineman), the receiver icons and
+   on-field prompts show the real buttons, and Settings carries the controller options. Device.poll applies
+   the layout; 'classic' keeps the original fixed layout for anyone who prefers it.
+   Every action here is one Tumble Bowl already has: nothing new is invented, only where it sits.
+   ============================================================ */
+const PAD_DEFAULTS = { scheme: 'madden', vib: true, dz: 0.18, sens: 1, cam: 1, invert: false };
+const PAD_COL = { A: '#4fd17a', B: '#e5322d', X: '#58b7ff', Y: '#f2d21b' };
+const PAD_NAME = { A: 'A button', B: 'B button', X: 'X button', Y: 'Y button', LB: 'Left bumper (LB)', RB: 'Right bumper (RB)', LT: 'Left trigger (LT)', RT: 'Right trigger (RT)', LS: 'Left stick', RS: 'Right stick', DP: 'D-pad', VIEW: 'View button', MENU: 'Menu button', L3: 'Left stick click (L3)', R3: 'Right stick click (R3)' };
+const PAD_CATS = [['move', 'General Movement'], ['qb', 'Quarterback'], ['carrier', 'Ball Carrier'], ['wr', 'Wide Receiver'], ['def', 'Defense'], ['st', 'Special Teams']];
+const PadCfg = {
+  lastPadT: -1e9,
+  S() { const G = Game.settings; G.pad = Object.assign({}, PAD_DEFAULTS, G.pad || {}); return G.pad; },
+  madden() { return this.S().scheme !== 'classic'; },
+  gp() { const l = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : []; for (const g of l || []) if (g && g.connected) return g; return null; },
+  /* the last thing you touched was a controller (prompts and hints switch to its buttons) */
+  active() { return this.lastPadT > (Keys.lastT || -1e9) && !!this.gp(); },
+  vibOK() { const g = this.gp(); return !!(g && g.vibrationActuator); },
+  rumble(str, ms) {
+    if (!this.S().vib) return;
+    const g = Game.devs && Game.devs.kb1 && Game.devs.kb1.pad !== null && navigator.getGamepads ? navigator.getGamepads()[Game.devs.kb1.pad] : null;
+    const a = g && g.vibrationActuator; if (!a || !a.playEffect) return;
+    try { a.playEffect(a.type || 'dual-rumble', { duration: ms || 120, strongMagnitude: clamp(str, 0, 1), weakMagnitude: clamp(str * 0.7 + 0.1, 0, 1) }).catch(() => {}); } catch (e) { }
+  },
+  hook() {
+    if (this.hooked) return; this.hooked = true;
+    const mine = (p) => p && p.human && Game.humans && Game.humans[0] === p.human && PadCfg.active();
+    Bus.on('tackle', (d) => { if (mine(d.by)) this.rumble(d.kind === 'big' || d.style === 'flip' ? 0.9 : 0.55, 140); else if (mine(d.c)) this.rumble(0.8, 200); });
+    Bus.on('hit', (d) => { if ((mine(d.a) || mine(d.b)) && d.dv > 2.5) this.rumble(Math.min(1, d.dv / 7), 90); });
+    Bus.on('truck', (d) => { if (mine(d.p)) this.rumble(0.6, 110); });
+    Bus.on('catch', (d) => { if (mine(d.p)) this.rumble(d.contested ? 0.45 : 0.25, 70); });
+    Bus.on('shoulder', (d) => { if (mine(d.p)) this.rumble(0.75, 120); });
+    Bus.on('trip', (d) => { if (mine(d.p)) this.rumble(0.5, 120); });
+  },
+  /* a button drawn the way it looks on the pad */
+  glyph(b) { const c = PAD_COL[b]; return c ? `<i class="pg pg-face" style="--pc:${c}">${b}</i>` : `<i class="pg ${b.length > 2 ? 'pg-w' : ''}">${b}</i>`; },
+  recvBtn: ['X', 'Y', 'B', 'A', 'RB'],
+
+  /* which controls apply right now for this human (Device.poll reads it next frame) */
+  ctxOf(h, m) {
+    const p = h.player, w = m && m.w; if (!p || !w || !m.play || m.phase !== 'live') return '';
+    const play = m.play, b = w.ball;
+    if (p.td || p.battle) return '';
+    if (w.fb && w.fb.sides.some(S => S.h === h)) return '';
+    if (w.jb && (w.jb.R.h === h || w.jb.D.h === h)) return '';
+    if (play.kind !== 'scrimmage') {
+      if (!play.kicked || play.kind === 'fg') return '';
+      if (p.hasBall) return 'carrier';
+      const carrier = w.carrier();
+      if (carrier && carrier.team !== p.team) return 'def';
+      if (!carrier && p.team === play.kickTeam) return 'def';
+      return b.state === 'air' ? 'catch' : 'route';
+    }
+    if (p.hasBall) return p.qbMode ? 'qb' : 'carrier';
+    if (typeof Trench !== 'undefined' && Trench.duelOf(p)) return 'trench';
+    const carrier = w.carrier();
+    if (b.state === 'air' && b.kind === 'pass') return p.team === play.off ? 'catch' : 'defair';
+    if (carrier && carrier.team !== p.team) return 'def';
+    return p.team === play.off ? 'route' : 'def';
+  },
+  /* the Madden layout: physical buttons → the game's actions for this context */
+  map(ctx, P, dev) {
+    switch (ctx) {
+      case 'qb': return { lob: P.LB || P.LT };   // the face buttons and RB are the receivers
+      case 'carrier': return { b: P.A, a: P.B, c: P.X && !dev.padQbRun, sw: P.LB || (P.X && dev.padQbRun), hu: P.Y, tr: P.RB, show: P.LT };
+      case 'route': return dev.padPark ? { b: P.A, a: P.B, c: P.X, lob: P.LT } : { sw: P.A, a: P.B, c: P.X, lob: P.LT };
+      case 'catch': return { b: P.A || P.B || P.X || P.Y || P.RB, lob: P.LB || P.LT };
+      case 'def': return { a: P.B, c: P.X, b: P.Y, sw: P.LB || P.A, tr: P.RB, lob: P.LT };
+      case 'defair': return { a: P.B, c: P.X, b: P.Y || P.A, lob: P.A || P.LT, sw: P.LB, tr: P.RB };
+      case 'trench': return { a: P.B, b: P.Y, c: P.X, tr: P.RB, hu: P.LB, sw: P.A };
+      default: return { sw: P.A, b: P.B, a: P.X, c: P.Y, lob: P.LB, tr: P.RB, hu: P.LB, show: P.LT };
+    }
+  },
+  /* Y is the jump / play-the-ball button during the play; before it (and in a jump ball) A still jumps */
+  jumpBtn(ctx) { return ctx === '' || ctx === 'qb' ? 'A' : ctx === 'carrier' || ctx === 'trench' ? null : 'Y'; },
+
+  /* ---------- the button table: one source for the diagram, the list, the hints and the tutorials ---------- */
+  rows() {
+    const M = this.madden();
+    if (!M) return [
+      ['move', 'LS', 'Move', 'Always'], ['move', 'RT', 'Sprint (hold)', 'Always'], ['move', 'A', 'Snap the ball / switch player', 'Before the snap and on defense'], ['move', 'DP', 'Move · pick plays in menus', 'Always'],
+      ['move', 'RS', 'Flick to switch defender by direction (turns the Player Focus camera in Road to the League)', 'On defense'], ['move', 'VIEW', 'Change the play', 'Before the snap'], ['move', 'MENU', 'Pause & settings', 'Any time'], ['move', 'L3', 'Timeout', 'Between plays'], ['move', 'R3', 'Show / hide play art', 'Before the snap'],
+      ['qb', 'X', 'Throw to receiver 1', 'Quarterback with the ball'], ['qb', 'Y', 'Throw to receiver 2', 'Quarterback with the ball'], ['qb', 'B', 'Throw to receiver 3', 'Quarterback with the ball'], ['qb', 'A', 'Throw to receiver 4', 'Quarterback with the ball'], ['qb', 'RB', 'Throw to receiver 5', 'Quarterback with the ball'], ['qb', 'LB', 'Hold for a lob', 'While winding up a throw'], ['qb', 'RT', 'Sprint (scramble)', 'Quarterback with the ball'],
+      ['carrier', 'X', 'Juke (the left stick picks the move)', 'With the ball'], ['carrier', 'B', 'Stiff-arm', 'With the ball'], ['carrier', 'Y', 'Dive', 'With the ball'], ['carrier', 'RB', 'Truck', 'With the ball'], ['carrier', 'LB', 'Hurdle (auto-timed over the man ahead)', 'With the ball'], ['carrier', 'LT', 'Showboat (risky)', 'With the ball'], ['carrier', 'A', 'Mash to break a tackle · QB slide', 'In a tackle battle'],
+      ['wr', 'B', 'Catch (time it)', 'Ball in the air'], ['wr', 'X', 'Release move off the line', 'At the snap'], ['wr', 'A', 'Call for the ball · jump-ball contest', 'Road to the League · jump balls'],
+      ['def', 'X', 'Tackle (press jam at the snap)', 'On defense'], ['def', 'Y', 'Dive / chop at the ankles', 'On defense'], ['def', 'B', 'Play the ball / intercept', 'Ball in the air'], ['def', 'LB', 'Hold with B to swat', 'Ball in the air'], ['def', 'RB', 'Shoulder hit', 'Near the ball carrier'], ['def', 'A', 'Switch player', 'On defense'], ['def', 'RS', 'Flick to switch by direction', 'On defense'],
+      ['st', 'LS', 'Aim the kick', 'Kickoff · field goal · extra point · punt'], ['st', 'A', 'Hold for power, release in the green, tap for accuracy', 'Kicking'], ['st', 'X', 'Also kicks (same as A)', 'Kicking'], ['st', 'A', 'Jump to block', 'Defending a field goal or extra point'], ['st', 'B', 'Catch the kick', 'Kick return'],
+    ];
+    return [
+      ['move', 'LS', 'Move and change direction', 'Always'], ['move', 'RT', 'Sprint (hold)', 'Always'], ['move', 'A', 'Snap the ball · cycle defenders before the snap', 'Before the snap'], ['move', 'DP', 'Move · pick plays and menus', 'Always'],
+      ['move', 'RS', 'Skill moves with the ball · hit stick or switch on defense (turns the Player Focus camera in Road to the League)', 'During the play'], ['move', 'VIEW', 'Change the play', 'Before the snap'], ['move', 'MENU', 'Pause & settings', 'Any time'], ['move', 'L3', 'Timeout', 'Between plays'], ['move', 'R3', 'Show / hide play art', 'Before the snap'],
+      ['qb', 'X', 'Throw to the X receiver', 'Quarterback with the ball: hold to wind up, release to throw'], ['qb', 'Y', 'Throw to the Y receiver', 'Quarterback with the ball'], ['qb', 'B', 'Throw to the B receiver', 'Quarterback with the ball'], ['qb', 'A', 'Throw to the A receiver', 'Quarterback with the ball'], ['qb', 'RB', 'Throw to the RB receiver', 'Quarterback with the ball'],
+      ['qb', 'LT', 'Hold for a lob (touch pass over the top)', 'While winding up a throw'], ['qb', 'LB', 'Lob (same as LT)', 'While winding up a throw'], ['qb', 'RT', 'Sprint (scramble)', 'Quarterback with the ball'], ['qb', 'LS', 'Lead the pass when set · scramble', 'Quarterback with the ball'],
+      ['carrier', 'RS', 'Flick left / right: juke · up: truck · down: stutter', 'With the ball'], ['carrier', 'A', 'Stiff-arm', 'With the ball'], ['carrier', 'B', 'Juke (the left stick picks juke, speed cut, sidestep or stutter; again for a double juke)', 'With the ball'],
+      ['carrier', 'X', 'Dive (quarterback: slide)', 'With the ball'], ['carrier', 'Y', 'Hurdle (auto-timed over the man ahead)', 'With the ball'], ['carrier', 'RB', 'Truck (lower the shoulder)', 'With the ball'], ['carrier', 'LT', 'Showboat (risky)', 'With the ball'], ['carrier', 'LB', 'Kneel in the end zone · QB slide', 'Kick return · quarterback'], ['carrier', 'A', 'Mash to break a tackle', 'In a tackle battle'],
+      ['wr', 'B', 'Release move off the line, then route moves', 'Before the throw'], ['wr', 'A', 'Call for the ball', 'Road to the League · the Park, before the throw'], ['wr', 'Y', 'Catch and go up for it (jump-ball contest)', 'Ball in the air'],
+      ['wr', 'A', 'Catch (time it as it arrives)', 'Ball in the air'], ['wr', 'B', 'Catch', 'Ball in the air'], ['wr', 'X', 'Catch', 'Ball in the air'], ['wr', 'RB', 'Catch', 'Ball in the air'],
+      ['def', 'B', 'Tackle (press jam at the snap)', 'On defense'], ['def', 'X', 'Dive tackle (from behind or alongside: chop at the ankles)', 'Near the ball carrier'], ['def', 'Y', 'Play the ball / intercept (jumps in Road & the Park)', 'Ball in the air'],
+      ['def', 'A', 'Swat the pass down · switch player when the ball is not in the air', 'On defense'], ['def', 'LB', 'Switch to the defender closest to the play', 'On defense'], ['def', 'RB', 'Shoulder hit (hit stick)', 'Near the ball carrier or the receiver'],
+      ['def', 'RS', 'Flick toward the carrier: hit stick · elsewhere: switch to the defender that way', 'On defense'], ['def', 'LT', 'Hold to swat', 'Ball in the air'],
+      ['st', 'LS', 'Aim the kick (fight the sway)', 'Kickoff · field goal · extra point · punt'], ['st', 'A', 'Hold for power, release in the green, tap again for accuracy', 'Kicking'], ['st', 'A', 'Jump to block', 'Defending a field goal or extra point'],
+      ['st', 'Y', 'Catch the kick', 'Kick return, ball in the air'], ['st', 'LB', 'Kneel in the end zone', 'Kick return'], ['st', 'B', 'Tackle', 'Kick coverage'], ['st', 'X', 'Dive tackle', 'Kick coverage'],
+    ];
+  },
+  /* the trench duel (lines locked up) */
+  trenchRows() {
+    return this.madden() ? [['B', 'swim', 'punch'], ['Y', 'rip', 'anchor'], ['RB', 'bull rush', 'drive'], ['X', 'spin', 'recover'], ['LB', 'club', '']] : [['X', 'swim', 'punch'], ['B', 'rip', 'anchor'], ['RB', 'bull rush', 'drive'], ['Y', 'spin', 'recover'], ['LB', 'club', '']];
+  },
+  /* labels for the tutorials (TUT_KEYS.pad) */
+  labels() {
+    if (!this.madden()) return null;
+    return { move: 'Left stick', sprint: 'RT', snap: 'A', sw: 'LB', juke: 'B', tackle: 'B', stiff: 'A', catch: 'Y', swat: 'A', dive: 'X', truck: 'RB', hit: 'RB', hurdle: 'Y', lob: 'LT',
+      throw: 'X · Y · B · A · RB', mash: 'A', jump: 'Y', change: 'View', art: 'Right stick click', cam: 'V key', pick: 'D-pad + A', pause: 'Menu', celeb: 'C key',
+      swim: 'B', rip: 'Y', bull: 'RB', spin: 'X', club: 'LB', punch: 'B', anchor: 'Y', drive: 'RB', recover: 'X' };
+  },
+  /* the HUD strip at the bottom while you play with a controller */
+  hud(G, h, m, p, w) {
+    const K = (b, l) => `<span>${this.glyph(b)} <span class="lbl">${l}</span></span>`, M = this.madden(), park = m && m.o && m.o.park, career = m && m.o && m.o.career;
+    if (!m || !m.play) return null;
+    if (m.phase === 'call') return { ctx: m.callEdit ? 'Change the play' : 'Pick a play', rows: [K('DP', 'choose'), K('A', 'select'), K('VIEW', m.callEdit ? 'keep current play' : 'back')] };
+    if (m.phase === 'patchoice' || m.phase === 'toss') return { ctx: m.phase === 'toss' ? 'Coin toss' : 'Try after touchdown', rows: [K('DP', 'choose'), K('A', 'select')] };
+    if (m.phase === 'entrance') return { ctx: 'Team entrance', rows: [K('A', 'skip')] };
+    if (m.phase === 'kickaim') return { ctx: { kickoff: 'Kickoff', punt: 'Punt', fg: m.play.pat ? 'Extra point' : 'Field goal' }[m.play.kind], rows: [K('LS', 'aim (fight the sway)'), K('A', 'hold: power'), K('A', 'release in the green'), K('A', 'tap: accuracy')] };
+    if (m.phase === 'presnap') {
+      const off = m.play.off === h.team && m.play.kind === 'scrimmage';
+      const r = off ? (career ? [K('LS', 'snap is automatic')] : [K('A', 'snap'), K('VIEW', 'change play'), K('R3', PlayArt.on ? 'hide play art' : 'play art')]) : [K('A', 'cycle player'), K('RS', 'flick: switch by direction')];
+      if (!off && m.play.kind === 'fg') r.push(K('A', 'jump to block (as he swings)'));
+      if (off && m.play.call && m.play.call.type === 'pass') r.push(`<span>${this.recvBtn.map(x => this.glyph(x)).join('')} <span class="lbl">after the snap: throw</span></span>`);
+      return { ctx: off ? (m.play.call ? m.play.call.name : 'Offense') : 'Defense', rows: r };
+    }
+    if (m.phase === 'dead') return { ctx: 'Whistle', rows: [K('MENU', 'pause')] };
+    if (!p) return null;
+    const c = h.dev.padCtx || '', j = M ? 'Y' : 'A';
+    if (!M) {   // the classic layout: the same buttons whatever you're doing
+      if (p.hasBall && p.qbMode) return { ctx: 'Quarterback', rows: [`<span>${this.recvBtn.map(x => this.glyph(x)).join('')} <span class="lbl">hold the receiver's button, release to throw</span></span>`, K('LB', 'lob'), K('RT', 'scramble')] };
+      if (p.hasBall) return { ctx: 'Ball carrier', rows: [K('X', 'juke'), K('B', 'stiff-arm'), K('LB', 'hurdle'), K('RB', 'truck'), K('Y', 'dive'), K('LT', 'showboat')] };
+      if (c === 'trench') { const D = Trench.duelOf(p), dl = D && D.d === p; return { ctx: dl ? 'Pass rush' : 'Blocking', rows: this.trenchRows().filter(r => dl || r[2]).map(r => K(r[0], dl ? r[1] : r[2])) }; }
+      if (c === 'def' || c === 'defair') return { ctx: 'Defense', rows: [K('X', 'tackle'), K('Y', 'dive / chop'), K('B', 'play the ball'), K('RB', 'shoulder hit'), K('A', 'switch')] };
+      return { ctx: w.ball.state === 'air' ? 'Ball in the air' : 'Offense', rows: [K('B', 'catch (time it)'), K('X', 'release / block'), K('RT', 'sprint')] };
+    }
+    switch (c) {
+      case 'qb': return { ctx: 'Quarterback', rows: [`<span>${this.recvBtn.map(x => this.glyph(x)).join('')} <span class="lbl">hold the receiver's button, release to throw</span></span>`, K('LT', 'lob'), K('RT', 'scramble'), K('LS', 'lead the pass')] };
+      case 'carrier': { const qb = h.dev.padQbRun; return { ctx: 'Ball carrier', rows: [K('RS', 'skill moves'), K('B', 'juke'), K('A', 'stiff-arm'), K('Y', 'hurdle'), K('RB', 'truck'), K('X', qb ? 'slide' : 'dive'), K('LT', 'showboat')].concat(m.play.kind !== 'scrimmage' ? [K('LB', 'kneel (end zone)')] : []) }; }
+      case 'route': return { ctx: m.play.kind !== 'scrimmage' ? 'Kick return' : 'Offense', rows: [K('B', m.play.thrown || m.play.kind !== 'scrimmage' ? 'block' : 'release / route move'), (park || career) && !m.play.thrown && m.play.kind === 'scrimmage' ? K('A', 'call for the ball') : '', K('RT', 'sprint')].filter(Boolean) };
+      case 'catch': return { ctx: 'Ball in the air', rows: [K('Y', 'catch & go up'), K('A', 'catch (time it)'), K('RT', 'sprint')] };
+      case 'defair': return { ctx: 'Ball in the air', rows: [K('Y', 'intercept'), K('A', 'swat'), K('B', 'tackle'), K('RB', 'hit stick'), K('LB', 'switch')] };
+      case 'def': return { ctx: m.play.kind !== 'scrimmage' ? 'Kick coverage' : 'Defense', rows: [K('B', 'tackle'), K('X', 'dive / chop'), K('RB', 'hit stick'), K('RS', 'flick: hit / switch'), K('LB', 'switch'), K(j, 'play the ball')] };
+      case 'trench': { const D = Trench.duelOf(p), dl = D && D.d === p; return { ctx: dl ? 'Pass rush' : 'Blocking', rows: this.trenchRows().filter(r => dl || r[2]).map(r => K(r[0], dl ? r[1] : r[2])).concat([K('LS', 'go when the window lights')]) }; }
+      default: return null;
+    }
+  },
+  /* small prompts over your man, only when a button does something right now */
+  prompt(h, m) {
+    if (!this.madden() || !this.active() || !m || !m.play || m.phase !== 'live') return '';
+    const p = h.player, w = m.w; if (!p || p.state !== 'up') return '';
+    const b = w.ball, c = h.dev.padCtx || '', G = (x) => this.glyph(x);
+    if (c === 'catch' || c === 'defair') {
+      const cp = b.catchPoint && b.catchPoint(1.3), near = cp && cp.p && hdist(p.pos, cp.p) < 4 && cp.t < 0.9;
+      if (!near && !(b.target === p && cp && cp.t < 0.9)) return '';
+      return c === 'catch' ? `${G('Y')} CATCH` : `${G('Y')} INT · ${G('A')} SWAT`;
+    }
+    if (c === 'def') { const k = w.carrier(); if (k && k.team !== p.team && hdist(k.pos, p.pos) < 3.2) return `${G('B')} TACKLE · ${G('X')} DIVE`; return ''; }
+    if (c === 'carrier') { const n = AI.nearestOpp(p, w); if (n && n.d < 3.5) return `${G('RS')} MOVE · ${G('A')} STIFF`; return ''; }
+    if (c === 'route' && h.locked === p && (m.o.park || m.o.career) && !m.play.thrown && !m.play.callBall && b.holder && b.holder.slot === 'QB' && m.play.kind === 'scrimmage') return `${G('A')} CALL FOR IT`;
+    return '';
+  },
+
+  /* ---------- Controls View → Controller: the interactive diagram ---------- */
+  BTN: { LT: [262, 84], RT: [538, 84], LB: [258, 120], RB: [542, 120], LS: [262, 198], RS: [476, 268], DP: [330, 268], A: [548, 236], B: [584, 200], X: [512, 200], Y: [548, 164], VIEW: [361, 203], MENU: [439, 203], L3: [262, 198], R3: [476, 268] },
+  art(cat, sel) {
+    const R = this.rows().filter(r => r[0] === cat), on = new Set(R.map(r => r[1]));
+    if (on.has('L3')) on.add('LS'); if (on.has('R3')) on.add('RS');
+    const cls = (b) => `pb ${on.has(b) ? 'hl' : ''} ${sel === b ? 'sel' : ''}`;
+    const face = [['A', 548, 236], ['B', 584, 200], ['X', 512, 200], ['Y', 548, 164]].map(([t, x, y]) => `<g class="${cls(t)}" data-btn="${t}" tabindex="0" role="button" aria-label="${PAD_NAME[t]}"><circle cx="${x}" cy="${y}" r="21" class="pb-ring" fill="#0b0f14" stroke="${PAD_COL[t]}" stroke-width="3"/><text x="${x}" y="${y + 6}" text-anchor="middle" font-size="18" font-weight="900" fill="${PAD_COL[t]}" font-family="Arial, sans-serif">${t}</text></g>`).join('');
+    return `<svg class="ob-pad pad-int" viewBox="110 30 580 390" role="group" aria-label="Xbox-style controller: choose a button"><defs><linearGradient id="pdG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b333e"/><stop offset="1" stop-color="#0e1218"/></linearGradient><radialGradient id="pdS" cx="0.4" cy="0.35" r="0.7"><stop offset="0" stop-color="#3a4552"/><stop offset="1" stop-color="#090c10"/></radialGradient></defs>
+      <g class="${cls('LT')}" data-btn="LT" tabindex="0" role="button" aria-label="${PAD_NAME.LT}"><path class="pb-ring" d="M228 102 C232 66 270 56 294 66 L294 100 C270 98 246 100 228 102 Z" fill="#1a2129" stroke="#5a6675" stroke-width="2"/><text x="262" y="90" text-anchor="middle" font-size="13" font-weight="900" fill="#c9d1d9">LT</text></g>
+      <g class="${cls('RT')}" data-btn="RT" tabindex="0" role="button" aria-label="${PAD_NAME.RT}"><path class="pb-ring" d="M572 102 C568 66 530 56 506 66 L506 100 C530 98 554 100 572 102 Z" fill="#1a2129" stroke="#5a6675" stroke-width="2"/><text x="538" y="90" text-anchor="middle" font-size="13" font-weight="900" fill="#c9d1d9">RT</text></g>
+      <path d="M262 112 C230 112 214 120 206 132 L196 150 C150 160 138 214 130 266 C120 330 112 382 150 398 C186 412 214 368 244 330 C258 312 280 304 300 304 L500 304 C520 304 542 312 556 330 C586 368 614 412 650 398 C688 382 680 330 670 266 C662 214 650 160 604 150 L594 132 C586 120 570 112 538 112 Z" fill="url(#pdG)" stroke="#3a4552" stroke-width="3"/>
+      <g class="${cls('LB')}" data-btn="LB" tabindex="0" role="button" aria-label="${PAD_NAME.LB}"><path class="pb-ring" d="M198 136 C206 106 246 94 292 96 L306 112 L204 142 Z" fill="#1a2129" stroke="#5a6675" stroke-width="2"/><text x="256" y="120" text-anchor="middle" font-size="12" font-weight="900" fill="#c9d1d9">LB</text></g>
+      <g class="${cls('RB')}" data-btn="RB" tabindex="0" role="button" aria-label="${PAD_NAME.RB}"><path class="pb-ring" d="M602 136 C594 106 554 94 508 96 L494 112 L596 142 Z" fill="#1a2129" stroke="#5a6675" stroke-width="2"/><text x="544" y="120" text-anchor="middle" font-size="12" font-weight="900" fill="#c9d1d9">RB</text></g>
+      <circle cx="400" cy="156" r="20" fill="#0b0f14" stroke="#4fd17a" stroke-width="2.5"/><path d="M393 150 L407 162 M407 150 L393 162" stroke="#4fd17a" stroke-width="3"/>
+      <g class="${cls('VIEW')}" data-btn="VIEW" tabindex="0" role="button" aria-label="${PAD_NAME.VIEW}"><rect class="pb-ring" x="348" y="194" width="26" height="17" rx="8" fill="#0b0f14" stroke="#c9d1d9" stroke-width="1.5"/><path d="M355 200 h8 v6 h-8z M358 198 h8 v6" stroke="#c9d1d9" fill="none" stroke-width="1.2"/></g>
+      <g class="${cls('MENU')}" data-btn="MENU" tabindex="0" role="button" aria-label="${PAD_NAME.MENU}"><rect class="pb-ring" x="426" y="194" width="26" height="17" rx="8" fill="#0b0f14" stroke="#c9d1d9" stroke-width="1.5"/><path d="M433 199 h12 M433 203 h12 M433 207 h12" stroke="#c9d1d9" stroke-width="1.4"/></g>
+      <g class="${cls('LS')}" data-btn="LS" tabindex="0" role="button" aria-label="${PAD_NAME.LS}"><circle cx="262" cy="198" r="38" fill="#05070a"/><circle class="pb-ring" cx="262" cy="198" r="29" fill="url(#pdS)" stroke="#8b96a3" stroke-width="3"/><text x="262" y="203" text-anchor="middle" font-size="13" font-weight="900" fill="#c9d1d9">LS</text></g>
+      <g class="${cls('RS')}" data-btn="RS" tabindex="0" role="button" aria-label="${PAD_NAME.RS}"><circle cx="476" cy="268" r="34" fill="#05070a"/><circle class="pb-ring" cx="476" cy="268" r="25" fill="url(#pdS)" stroke="#8b96a3" stroke-width="3"/><text x="476" y="273" text-anchor="middle" font-size="13" font-weight="900" fill="#c9d1d9">RS</text></g>
+      <g class="${cls('DP')}" data-btn="DP" tabindex="0" role="button" aria-label="${PAD_NAME.DP}" transform="translate(330 268)"><rect class="pb-ring" x="-12" y="-36" width="24" height="72" rx="5" fill="#141a21" stroke="#5a6675"/><rect class="pb-ring" x="-36" y="-12" width="72" height="24" rx="5" fill="#141a21" stroke="#5a6675"/><circle r="6" fill="#0b0f14"/></g>
+      ${face}
+    </svg>`;
+  },
+  info(cat, b) {
+    const all = this.rows(), mine = all.filter(r => r[1] === b || (b === 'LS' && r[1] === 'L3') || (b === 'RS' && r[1] === 'R3'));
+    const here = mine.filter(r => r[0] === cat), catN = (k) => (PAD_CATS.find(c => c[0] === k) || [k, k])[1];
+    const off = mine.filter(r => r[0] === 'qb' || r[0] === 'carrier' || r[0] === 'wr').map(r => r[2]), def = mine.filter(r => r[0] === 'def').map(r => r[2]);
+    const cut = (l) => [...new Set(l)].slice(0, 3).map(x => x.replace(/ \(.*\)$/, '')).join(' · ');
+    const same = !off.length || !def.length ? (off.length || def.length ? (off.length ? 'Offense only: ' + cut(off) + '.' : 'Defense only: ' + cut(def) + '.') : 'Works the same on offense and defense.') : 'Changes with the side of the ball. Offense: ' + cut(off) + '. Defense: ' + cut(def) + '.';
+    const use = here.length ? here : mine.slice(0, 1);
+    const elsewhere = mine.filter(r => r[0] !== cat);
+    return `<div class="pi-h">${this.glyph(b)}<b>${PAD_NAME[b] || b}</b></div>
+      ${use.length ? use.map(r => `<div class="pi-r"><span>What it does</span><p>${esc(r[2])}</p></div><div class="pi-r"><span>When</span><p>${esc(r[3])}</p></div>`).join('') : `<div class="pi-r"><p>Not used in ${esc(catN(cat))}.</p></div>`}
+      <div class="pi-r"><span>Offense vs defense</span><p>${esc(same)}</p></div>
+      ${elsewhere.length ? `<div class="pi-r"><span>Elsewhere</span><ul>${elsewhere.slice(0, 5).map(r => `<li><em>${esc(catN(r[0]))}</em> ${esc(r[2])}</li>`).join('')}</ul></div>` : ''}`;
+  },
+  viewHTML(cat, sel) {
+    cat = cat || 'move';
+    const R = this.rows().filter(r => r[0] === cat), S = this.S();
+    const tr = cat === 'def' ? `<div class="pi-tr"><b>Locked up on the line</b>${this.trenchRows().map(r => `<span>${this.glyph(r[0])} ${r[1]}${r[2] ? ' / ' + r[2] : ''}</span>`).join('')}<small>Pass rush / blocking. Corners, safeties and linebackers use the coverage buttons above; linemen get these while they're engaged with a blocker.</small></div>` : '';
+    return `<div class="pad-view"><div class="pv-cats" role="tablist" aria-label="Control categories">${PAD_CATS.map(([k, n]) => `<button role="tab" data-pcat="${k}" class="${k === cat ? 'on' : ''}" aria-selected="${k === cat}">${n}</button>`).join('')}</div>
+      <div class="pv-main"><div class="pv-art">${this.art(cat, sel)}<div class="pv-scheme">Layout: <b>${S.scheme === 'classic' ? 'Classic' : 'Madden-style'}</b> · change it in Settings → Controller</div></div>
+      <div class="pv-side"><div class="pv-info" aria-live="polite">${sel ? this.info(cat, sel) : '<p class="pi-tip">Select any button to see what it does.</p>'}</div>
+      <div class="pv-list">${R.map(r => `<button class="pv-row ${sel === r[1] ? 'on' : ''}" data-btn="${r[1]}">${this.glyph(r[1])}<span>${esc(r[2])}</span></button>`).join('')}</div>${tr}</div></div></div>`;
+  },
+  wireView(root, redraw) {
+    root.querySelectorAll('[data-pcat]').forEach(b => b.onclick = () => { Sfx.click && Sfx.click(); this.vCat = b.dataset.pcat; this.vSel = null; redraw(); const t = root.querySelector(`[data-pcat="${this.vCat}"]`); t && t.focus({ preventScroll: true }); });
+    root.querySelectorAll('.pad-view [data-btn]').forEach(g => {
+      const go = () => { Sfx.click && Sfx.click(); this.vSel = g.dataset.btn; redraw(); const t = root.querySelector(`.pad-int [data-btn="${this.vSel}"]`); t && t.focus && t.focus({ preventScroll: true }); };
+      g.onclick = go; g.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } };
+    });
+  },
+
+  /* ---------- Settings → Controller ---------- */
+  html(seg) {
+    const S = this.S(), g = this.gp();
+    return `<div class="field pad-set"><label>Controller ${g ? `<small class="ok">· ${esc(g.id.replace(/\(.*?\)/g, '').trim().slice(0, 34) || 'connected')}</small>` : '<small>· none connected</small>'}</label>
+      <div class="rs-row"><span>Button layout</span>${seg('cScheme', [['madden', 'Madden-style'], ['classic', 'Classic']], S.scheme === 'classic' ? 'classic' : 'madden')}</div>
+      <div class="rs-row"><span>Vibration${g && !g.vibrationActuator ? ' <small>(not supported by this controller / browser)</small>' : ''}</span>${seg('cVib', [['1', 'On'], ['0', 'Off']], S.vib ? '1' : '0')}</div>
+      <div class="rs-row"><span>Stick sensitivity <b id="cSensV">${S.sens.toFixed(2)}×</b></span><input type="range" id="cSens" min="70" max="150" step="5" value="${Math.round(S.sens * 100)}" aria-label="Stick sensitivity"></div>
+      <div class="rs-row"><span>Stick deadzone <b id="cDzV">${Math.round(S.dz * 100)}%</b></span><input type="range" id="cDz" min="5" max="35" step="1" value="${Math.round(S.dz * 100)}" aria-label="Stick deadzone"></div>
+      <div class="rs-row"><span>Camera stick speed <b id="cCamV">${S.cam.toFixed(2)}×</b></span><input type="range" id="cCam" min="40" max="200" step="10" value="${Math.round(S.cam * 100)}" aria-label="Camera stick speed"></div>
+      <div class="rs-row"><span>Invert camera (right stick up/down)</span>${seg('cInv', [['0', 'Off'], ['1', 'On']], S.invert ? '1' : '0')}</div>
+      <div class="row2"><button class="ghost" id="cMap">Button mapping</button><button class="ghost" id="cRst">Restore default controls</button></div></div>`;
+  },
+  wire(bind, reopen) {
+    const S = this.S(), save = () => Game.saveSettings();
+    if (!document.getElementById('cScheme')) return;
+    bind('cScheme', v => { S.scheme = v; save(); });
+    bind('cVib', v => { S.vib = v === '1'; save(); if (S.vib) this.rumble(0.5, 120); });
+    bind('cInv', v => { S.invert = v === '1'; save(); });
+    const rng = (id, k, f) => { const r = document.getElementById(id); if (!r) return; r.oninput = () => { S[k] = +r.value / 100; document.getElementById(id + 'V').textContent = f(S[k]); }; r.onchange = save; };
+    rng('cSens', 'sens', v => v.toFixed(2) + '×'); rng('cDz', 'dz', v => Math.round(v * 100) + '%'); rng('cCam', 'cam', v => v.toFixed(2) + '×');
+    document.getElementById('cMap').onclick = () => { Sfx.click && Sfx.click(); Onboard.openControls('controller'); };
+    document.getElementById('cRst').onclick = () => { Sfx.click && Sfx.click(); Game.settings.pad = Object.assign({}, PAD_DEFAULTS); save(); reopen && reopen(); };
+  },
+};
 
 class Device {
   constructor(map, padIndex) {
@@ -9142,21 +9430,40 @@ class Device {
     if (m.dsw && !this.arrowsTaken) for (const code of q) if (m.dsw[code]) this.dsw = m.dsw[code];
     const gp = this.pad !== null && typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads()[this.pad] : null;
     if (gp) {
-      const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
-      if (Math.hypot(ax, ay) > 0.18) { mx = ax; my = -ay; }
+      const PC = PadCfg.S(), dz = clamp(PC.dz, 0.03, 0.5);
+      const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0, al = Math.hypot(ax, ay);
+      // past the deadzone the stick ramps from a walk to full speed (sensitivity reaches full speed sooner)
+      if (al > dz) { const k = Math.min(1, (al - dz) / (1 - dz) * PC.sens) / al; mx = ax * k; my = -ay * k; }
       const B = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed);
+      const T = (i) => B(i) || !!(gp.buttons[i] && gp.buttons[i].value > 0.3);
       if (B(14)) mx = -1; if (B(15)) mx = 1; if (B(12)) my = 1; if (B(13)) my = -1;
-      sprint = sprint || B(7) || (gp.buttons[7] && gp.buttons[7].value > 0.3);
-      sw = sw || B(0); b = b || B(1); a = a || B(2); c = c || B(3); lob = lob || B(4); tr = tr || B(5); hu = hu || B(4);
-      if (B(0) && !(this.prevPad || {})[0]) { this.mash++; this.jump++; }
-      recv[0] = recv[0] || B(2); recv[1] = recv[1] || B(3); recv[2] = recv[2] || B(1); recv[3] = recv[3] || B(0); recv[4] = recv[4] || B(5);
-      start = B(9); chg = chg || B(8); to = to || B(10); show = show || B(6);   // left trigger: early celebration (showboat)   // left stick click: timeout   // View/Back: change the play before the snap
+      sprint = sprint || T(7);
       const pv = this.prevPad || {};
+      // Madden-style: the buttons follow what you're doing (PadCfg.map); Classic keeps one fixed layout
+      const ctx = PC.scheme === 'classic' ? '' : (this.padCtx || '');
+      const P = { A: B(0), B: B(1), X: B(2), Y: B(3), LB: B(4), RB: B(5), LT: T(6) };
+      // a button still held from before the situation changed (the catch became a run) waits to be let go,
+      // so holding Y to catch doesn't turn into a hurdle the moment the ball is yours
+      if (ctx !== this.lastCtx) { this.lastCtx = ctx; this.padHeld = Object.assign({}, P); }
+      if (this.padHeld) for (const k in P) if (this.padHeld[k]) { if (P[k]) P[k] = false; else this.padHeld[k] = false; }
+      const g = PC.scheme === 'classic' ? PadCfg.map('', P, this) : PadCfg.map(ctx, P, this);
+      sw = sw || !!g.sw; b = b || !!g.b; a = a || !!g.a; c = c || !!g.c; lob = lob || !!g.lob; tr = tr || !!g.tr; hu = hu || !!g.hu; show = show || !!g.show;
+      if (B(0) && !pv[0]) this.mash++;
+      const jb = PC.scheme === 'classic' ? 0 : { A: 0, Y: 3 }[PadCfg.jumpBtn(ctx)];
+      if (jb != null && B(jb) && !pv[jb]) this.jump++;
+      recv[0] = recv[0] || B(2); recv[1] = recv[1] || B(3); recv[2] = recv[2] || B(1); recv[3] = recv[3] || B(0); recv[4] = recv[4] || B(5);
+      start = B(9); chg = chg || B(8); to = to || B(10);   // left stick click: timeout   // View/Back: change the play before the snap
       if (B(11) && !pv[11] && typeof PlayArt !== 'undefined') PlayArt.toggle();   // right stick click: play art before the snap
       if (B(14) && !pv[14]) this.padNav = -1; else if (B(15) && !pv[15]) this.padNav = 1; else this.padNav = 0;
       this.padConfirm = B(0) && !pv[0];
       const rx = gp.axes[2] || 0, ry = gp.axes[3] || 0, rl = Math.hypot(rx, ry);
-      if (rl > 0.75 && !this.rFlick) { this.rFlick = true; this.dsw = [rx / rl, -ry / rl]; } else if (rl < 0.35) this.rFlick = false;
+      // the right stick: skill moves with the ball, hit stick / switch on defense (the Player Focus camera keeps it to itself)
+      const camStick = typeof Cam !== 'undefined' && Cam.career && Cam.career() && Game.match && Game.match.o && Game.match.o.career && Cam.careerMode && Cam.careerMode(Game.settings.camCareer) === 'focus';
+      if (rl > 0.75 && !this.rFlick) {
+        this.rFlick = true; const v = [rx / rl, -ry / rl];
+        if (!camStick && ctx === 'carrier') this.rsMove = v; else if (!camStick && (ctx === 'def' || ctx === 'defair')) this.rsDef = v; else this.dsw = v;
+      } else if (rl < 0.35) this.rFlick = false;
+      if (al > dz || rl > 0.5 || gp.buttons.some(x => x && x.pressed)) PadCfg.lastPadT = now;
       this.prevPad = {}; for (let i = 0; i < gp.buttons.length; i++) this.prevPad[i] = B(i);
     } else { this.padNav = 0; this.padConfirm = false; }
     // on-screen touch controls drive Player 1 like a gamepad
@@ -9430,6 +9737,10 @@ class HumanCtl {
     if (want !== this.player && !(this.manualHold > 0 && this.player && this.player.team === this.team && !(w.carrier() && w.carrier().team === this.team))) this.setPlayer(want);
     if (this.manualHold > 0) this.manualHold -= dt;
     const p = this.player, b0 = w.ball;
+    // the controller layout follows what you're doing (PadCfg.map reads this on the next poll)
+    d.padCtx = p ? PadCfg.ctxOf(this, m) : ''; d.padPark = !!(m.o && m.o.park);
+    d.padQbRun = !!(p && p.role === 'QB' && play.kind === 'scrimmage' && play.off === p.team);
+    const rsMove = d.rsMove, rsDef = d.rsDef; d.rsMove = d.rsDef = null;
     if (!p) return;
     if (play.kind !== 'scrimmage' && !play.kicked && (p === play.kicker || p === play.holder)) return; // the kick itself is automatic once aimed
     if (play.kind === 'scrimmage' && play.call && play.call.type === 'run' && !play.handedOff && !play.qbKeep && p.team === play.off && (p.slot === 'RB' || p.slot === 'QB')) return; // the handoff mesh is automatic; you take over once the RB has the ball
@@ -9494,20 +9805,15 @@ class HumanCtl {
     }
     this.charge = null;
     if (p.hasBall) {
-      if (d.take('a')) {
-        // the stick decides the move, read relative to where he's running
-        const sp = p.speed, f = sp > 0.5 ? _a.c.set(p.vel.x / sp, 0, p.vel.z / sp) : p.fwd(_a.c);
-        const r = _a.d.set(-f.z, 0, f.x);
-        const lat = mv.dot(r), fw = mv.dot(f), mag = mv.length();
-        const n = AI.nearestOpp(p, w);
-        const away = n ? (((n.q.pos.x - p.pos.x) * r.x + (n.q.pos.z - p.pos.z) * r.z) > 0 ? -1 : 1) : 1;
-        const cur = p.mv;
-        if (cur && (cur.kind === 'juke' || cur.kind === 'speedcut') && cur.t > 0.08 && !cur.chained && p.stamina > 0.45) p.startMove('juke2', -cur.side, true);
-        else if (mag < 0.2) p.startMove('sidestep', away);
-        else if (fw < -0.45) p.startMove('stutter', 1);
-        else if (s.sprint && fw > 0.35 && Math.abs(lat) > 0.3) p.startMove('speedcut', Math.sign(lat));
-        else if (Math.abs(lat) > 0.25) p.startMove('juke', Math.sign(lat));
-        else p.startMove('sidestep', away);
+      if (d.take('a')) this.skillMove(p, mv, w, s);
+      // right stick (Madden-style layout): flick left / right to juke that way, up to truck, down to stutter
+      if (rsMove) {
+        const v = _a.e.copy(this.camF).multiplyScalar(rsMove[1]).addScaledVector(this.camR, rsMove[0]).setY(0);
+        const sp = p.speed, f = sp > 0.5 ? _a.c.set(p.vel.x / sp, 0, p.vel.z / sp) : p.fwd(_a.c), r = _a.d.set(-f.z, 0, f.x);
+        const fw = v.dot(f), lat = v.dot(r);
+        if (fw > 0.7) p.truck();
+        else if (fw < -0.7) p.startMove('stutter', 1);
+        else { const cur = p.mv; if (cur && (cur.kind === 'juke' || cur.kind === 'speedcut') && cur.t > 0.08 && !cur.chained && p.stamina > 0.45) p.startMove('juke2', -cur.side, true); else p.startMove(s.sprint && fw > 0.2 ? 'speedcut' : 'juke', Math.sign(lat) || 1); }
       }
       if (d.take('tr')) p.truck();
       if (d.take('hu')) w.hurdleOver(p);
@@ -9561,7 +9867,29 @@ class HumanCtl {
     if (d.take('tr')) p.hitStick(w);   // the shoulder hit (BOOMSTICK) on the ball carrier or the receiver
     if (d.take('sw')) this.switchDef(m);
     if (d.dsw) { this.switchDir(m, d.dsw); d.dsw = null; }
+    // right stick on defense (Madden-style layout): flicked at the ball carrier or the receiver it's the hit stick, anywhere else it switches
+    if (rsDef) {
+      const v = _a.e.copy(this.camF).multiplyScalar(rsDef[1]).addScaledVector(this.camR, rsDef[0]).setY(0).normalize();
+      const tg = carrier && carrier.team !== p.team ? carrier : (b.state === 'air' && b.kind === 'pass' && b.target && b.target.team !== p.team ? b.target : null);
+      const dx = tg ? tg.pos.x - p.pos.x : 0, dz = tg ? tg.pos.z - p.pos.z : 0, dl = Math.hypot(dx, dz) || 1;
+      if (tg && dl < 7 && (dx * v.x + dz * v.z) / dl > 0.5) p.hitStick(w); else this.switchDir(m, rsDef);
+    }
     if (carrier && carrier.team !== p.team && hdist(carrier.pos, p.pos) < 1.5) p.wantsTackle = true;
+  }
+  /* the juke button: the stick decides the move, read relative to where he's running */
+  skillMove(p, mv, w, s) {
+    const sp = p.speed, f = sp > 0.5 ? _a.c.set(p.vel.x / sp, 0, p.vel.z / sp) : p.fwd(_a.c);
+    const r = _a.d.set(-f.z, 0, f.x);
+    const lat = mv.dot(r), fw = mv.dot(f), mag = mv.length();
+    const n = AI.nearestOpp(p, w);
+    const away = n ? (((n.q.pos.x - p.pos.x) * r.x + (n.q.pos.z - p.pos.z) * r.z) > 0 ? -1 : 1) : 1;
+    const cur = p.mv;
+    if (cur && (cur.kind === 'juke' || cur.kind === 'speedcut') && cur.t > 0.08 && !cur.chained && p.stamina > 0.45) p.startMove('juke2', -cur.side, true);
+    else if (mag < 0.2) p.startMove('sidestep', away);
+    else if (fw < -0.45) p.startMove('stutter', 1);
+    else if (s.sprint && fw > 0.35 && Math.abs(lat) > 0.3) p.startMove('speedcut', Math.sign(lat));
+    else if (Math.abs(lat) > 0.25) p.startMove('juke', Math.sign(lat));
+    else p.startMove('sidestep', away);
   }
   /* the switch button: the defender in the best spot to make the play. On a ball carrier that's whoever can get to
      him first (distance, with credit for being in front of him, between him and the goal line); with the ball in the
@@ -19462,7 +19790,7 @@ const TUT_KEYS = {
       change: 'Tab', art: 'Y', cam: Game.keyName(S.camKey || 'KeyV'), pick: '1 – 9', pause: 'Esc', celeb: 'C',
       swim: k('a', 'J'), rip: k('b', 'K'), bull: k('tr', 'I'), spin: k('c', 'L'), club: k('hu', 'O'), punch: k('a', 'J'), anchor: k('b', 'K'), drive: k('tr', 'I'), recover: k('c', 'L') };
   },
-  pad: () => ({ move: 'Left stick', sprint: 'RT', snap: 'A', sw: 'A', juke: 'X', tackle: 'X', stiff: 'B', catch: 'B', swat: 'LB + B', dive: 'Y', truck: 'RB', hit: 'RB', hurdle: 'LB', lob: 'LB',
+  pad: () => PadCfg.labels() || ({ move: 'Left stick', sprint: 'RT', snap: 'A', sw: 'A', juke: 'X', tackle: 'X', stiff: 'B', catch: 'B', swat: 'LB + B', dive: 'Y', truck: 'RB', hit: 'RB', hurdle: 'LB', lob: 'LB',
     throw: 'X · Y · B · A · RB', mash: 'A', jump: 'A', change: 'View', art: 'Right stick click', cam: 'V key', pick: 'D-pad + A', pause: 'Menu', celeb: 'C key',
     swim: 'X', rip: 'B', bull: 'RB', spin: 'Y', club: 'LB', punch: 'X', anchor: 'B', drive: 'RB', recover: 'Y' }),
   touch: () => ({ move: 'the joystick (left side)', sprint: 'joystick pushed to the edge', snap: 'SNAP', sw: 'SWITCH', juke: 'JUKE', tackle: 'TACKLE', stiff: 'STIFF', catch: 'CATCH', swat: 'SWAT', dive: 'DIVE',
@@ -31932,7 +32260,7 @@ const RoadCtl = {
     if (this.wantYaw != null) { const dy = wrapAng(this.wantYaw - this.yaw); this.yaw += dy * Math.min(1, dt * 3); if (Math.abs(dy) < 0.01 || t - this.userT < 0.3) this.wantYaw = null; }
     // the right stick turns it too
     const pad = Game.devs && Game.devs.kb1, gp = pad && pad.pad !== null && navigator.getGamepads ? navigator.getGamepads()[pad.pad] : null;
-    if (gp) { const rx = gp.axes[2] || 0, ry = gp.axes[3] || 0; if (Math.abs(rx) > 0.15 || Math.abs(ry) > 0.15) this.turn(rx * 520 * dt, ry * 380 * dt); }
+    if (gp) { const PC = PadCfg.S(), rx = gp.axes[2] || 0, ry = (gp.axes[3] || 0) * (PC.invert ? -1 : 1); if (Math.abs(rx) > 0.15 || Math.abs(ry) > 0.15) this.turn(rx * 520 * PC.cam * dt, ry * 380 * PC.cam * dt); }
     // follow a smoothed point at his shoulders, so steps and bumps don't shake the picture
     const T = this.tgt || (this.tgt = P.pos.clone());
     const k = 1 - Math.exp(-dt * 12);
@@ -32109,7 +32437,7 @@ const Onboard = {
       const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(g => g) : null; if (!gp) return;
       const B = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed), ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
       const now = { up: B(12) || ay < -0.6, down: B(13) || ay > 0.6, left: B(14) || ax < -0.6, right: B(15) || ax > 0.6, a: B(0), b: B(1), lb: B(4), rb: B(5) };
-      const edge = (k) => now[k] && !prev[k]; prev = now;
+      const was = prev, edge = (k) => now[k] && !was[k]; prev = now;
       if (edge('b')) return this.back();
       if (this.mode === 'news' && (edge('lb') || (edge('left') && !this.el.querySelector('input:focus')))) return this.newsGo(this.ni - 1);
       if (this.mode === 'news' && (edge('rb') || edge('right'))) return this.newsGo(this.ni + 1);
@@ -32118,7 +32446,12 @@ const Onboard = {
       let i = items.indexOf(document.activeElement);
       const move = (d) => { i = i < 0 ? 0 : (i + d + items.length) % items.length; items[i].focus(); items[i].scrollIntoView({ block: 'nearest' }); };
       if (edge('down') || edge('right')) move(1); else if (edge('up') || edge('left')) move(-1);
-      if (edge('a') && i >= 0) items[i].click();
+      if (edge('a') && i >= 0) { const t = items[i]; if (t.click) t.click(); else t.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
+      // the controller diagram: the bumpers flip through the categories
+      if ((this.mode === 'controls' || this.mode === 'setup') && this.ctlBig === 'controller' && (edge('lb') || edge('rb'))) {
+        const k = PAD_CATS.findIndex(c => c[0] === (PadCfg.vCat || 'move')), n = PAD_CATS[(k + (edge('rb') ? 1 : -1) + PAD_CATS.length) % PAD_CATS.length][0];
+        const t = this.el.querySelector(`[data-pcat="${n}"]`); if (t) t.click();
+      }
     };
     requestAnimationFrame(loop);
   },
@@ -32229,9 +32562,11 @@ const Onboard = {
     el.querySelectorAll('[data-ctl]').forEach(b => b.onclick = () => { Sfx.click && Sfx.click(); this.ctl = b.dataset.ctl; this.ctlBig = b.dataset.ctl; redraw(); });
     el.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { Sfx.click && Sfx.click(); this.ctl = b.dataset.tab; this.ctlBig = b.dataset.tab; redraw(); });
     const cb = el.querySelector('#obCtlBack'); if (cb) cb.onclick = () => { Sfx.click && Sfx.click(); this.ctlBig = null; redraw(); };
+    if (el.querySelector('.pad-view')) PadCfg.wireView(el, redraw);
   },
   ctlDetail(k, inSetup) {
     const tabs = `<div class="ob-tabs" role="tablist">${[['desktop', 'Desktop'], ['mobile', 'Mobile'], ['controller', 'Controller']].map(([t, n]) => `<button role="tab" data-tab="${t}" class="${t === k ? 'on' : ''}" aria-selected="${t === k}">${n}</button>`).join('')}</div>`;
+    if (k === 'controller') return `<div class="ob-detailhead">${inSetup ? '<button class="ob-btn ob-gh sm" id="obCtlBack">‹ All controls</button>' : ''}${tabs}</div>${PadCfg.viewHTML(PadCfg.vCat, PadCfg.vSel)}`;
     const L = this.legend(k);
     const art = k === 'desktop' ? `<div class="ob-desk">${this.kbSVG(false)}${this.mouseSVG(false)}</div>` : k === 'mobile' ? this.phoneSVG(false) : this.padSVG(false);
     return `<div class="ob-detailhead">${inSetup ? '<button class="ob-btn ob-gh sm" id="obCtlBack">‹ All controls</button>' : ''}${tabs}</div>
@@ -32252,16 +32587,7 @@ const Onboard = {
         ['Mouse', [['Left drag', 'Turn the Player Focus camera'], ['Right drag', 'Turn the Player Focus camera'], ['Wheel', 'Zoom the Player Focus camera'], ['Click (Park)', 'Mouse look: the cursor hides, the mouse turns the camera'], ['Click', 'Menus and play cards']]],
       ];
     }
-    if (k === 'controller') {
-      const P = TUT_KEYS.pad();
-      return [
-        ['Movement', [[P.move, 'Move'], [P.sprint, 'Sprint'], ['A', 'Snap the ball / switch player'], ['Right stick flick', 'Switch defender by direction'], ['D-pad', 'Move / menus']]],
-        ['Ball carrier', [['X', 'Juke'], ['B', 'Stiff-arm'], ['RB', 'Truck'], ['LB', 'Hurdle'], ['Y', 'Dive'], ['LT', 'Showboat'], ['A', 'Mash: break tackles']]],
-        ['Passing & catching', [['X · Y · B · A · RB', 'Throw to receiver 1–5'], ['LB', 'Hold for a lob'], ['B', 'Catch'], ['A', 'Jump-ball contest']]],
-        ['Defense', [['X', 'Tackle'], ['RB', 'Shoulder hit'], ['Y', 'Dive'], ['B', 'Play the ball'], ['LB + B', 'Swat']]],
-        ['Game', [['D-pad + A', 'Pick a play'], ['View', 'Change the play'], ['R3 (right stick click)', 'Play art'], ['L3 (left stick click)', 'Timeout'], ['Menu', 'Pause']]],
-      ];
-    }
+    if (k === 'controller') return PAD_CATS.map(([c, n]) => [n, PadCfg.rows().filter(r => r[0] === c).map(r => [r[1] === 'DP' ? 'D-pad' : r[1] === 'LS' ? 'Left stick' : r[1] === 'RS' ? 'Right stick' : r[1] === 'VIEW' ? 'View' : r[1] === 'MENU' ? 'Menu' : r[1], r[2]])]);
     return [
       ['Movement', [['Joystick (left side)', 'Move'], ['Joystick to the edge', 'Sprint'], ['SNAP / SWITCH', 'Snap the ball / switch player']]],
       ['Ball carrier', [['JUKE', 'Juke'], ['STIFF', 'Stiff-arm'], ['TRUCK', 'Truck'], ['HURDLE', 'Hurdle'], ['DIVE', 'Dive'], ['SHOW', 'Showboat'], ['MASH', 'Break tackles (shows when you need it)']]],
@@ -32375,8 +32701,8 @@ const Onboard = {
   },
 
   /* ---------- Controls View (Settings) ---------- */
-  openControls() {
-    this.mode = 'controls'; this.ctl = 'desktop'; this.ctlBig = 'desktop';   // desktop first, selected by default
+  openControls(k) {
+    this.mode = 'controls'; this.ctl = k || 'desktop'; this.ctlBig = k || 'desktop';   // desktop first, selected by default
     this.shell(); this.renderControls();
   },
   renderControls() {
@@ -32463,6 +32789,7 @@ const Game = {
     Onboard.hadSettings = store.raw('hardcount.settings') != null;   // an existing player skips the first-time setup
     Gfx.init($('game'));
     this.devs = { kb1: new Device(KB1, 0), kb2: new Device(KB2, 1) };
+    PadCfg.hook();
     TouchPad.init(); TouchPad.on = TouchPad.available();
     Gfx.setTeams(TEAM_DEFS);
     Gfx.setEnvironment('clear', true);
@@ -33772,7 +34099,9 @@ const UI = {
         const ring = Gfx.ctlRing[i]; ring.visible = true; ring.position.set(p.pos.x, 0.03, p.pos.z);
         const s = proj(p.joints[J.HEAD].clone().add(new V3(0, 0.55, 0)));
         if (s) html += `<div class="tag me ${i ? 'p2' : ''}" style="left:${s[0]}px;top:${s[1]}px">▼ ${G.humans.length > 1 ? h.label : '#' + p.num}</div>`;
-        const m = G.match;
+        const m = G.match, padTags = i === 0 && h.dev === G.devs.kb1 && PadCfg.active();
+        // contextual button prompt over your man (controller only, only while it does something)
+        if (padTags && s) { const pr = PadCfg.prompt(h, m); if (pr) html += `<div class="tag pp" style="left:${s[0]}px;top:${s[1] - 22}px">${pr}</div>`; }
         if (m && p.hasBall && p.qbMode && m.play && m.play.kind === 'scrimmage') {
           for (let k = 0; k < 5; k++) {
             const r = h.receiver(m.play, k); if (!r || r.state !== 'up') continue;
@@ -33780,7 +34109,7 @@ const UI = {
             const cls = sep > 3.5 ? 'open' : sep > 1.8 ? 'tight' : 'cov';
             const q = proj(r.joints[J.HEAD].clone().add(new V3(0, 0.6, 0)));
             const sel = h.charge && h.charge.i === k ? 'outline:2px solid #f2d21b;' : '';
-            if (q) html += `<div class="tag ${cls}" style="left:${q[0]}px;top:${q[1]}px;${sel}">${k + 1}</div>`;
+            if (q) html += padTags ? `<div class="tag pt ${cls}" style="left:${q[0]}px;top:${q[1]}px;${sel}">${PadCfg.glyph(PadCfg.recvBtn[k])}</div>` : `<div class="tag ${cls}" style="left:${q[0]}px;top:${q[1]}px;${sel}">${k + 1}</div>`;
           }
         }
       });
@@ -33798,6 +34127,16 @@ const UI = {
     const m = G.match, p = h.player, w = G.world;
     let ctx = '', rows = [];
     const K = (k, l) => `<span><kbd>${k}</kbd> <span class="lbl">${l}</span></span>`;
+    // playing with a controller: the strip shows its buttons for whatever you're doing
+    if (!Sandbox.park && !Sandbox.active && h.dev === G.devs.kb1 && PadCfg.active()) {
+      const H = PadCfg.hud(G, h, m, p, w);
+      if (H) {
+        if (m && (m.phase === 'presnap' || m.phase === 'dead' || m.phase === 'call') && m.canTimeout && m.canTimeout(h.team) && m.clock < 300) H.rows.push(`<span>${PadCfg.glyph('L3')} <span class="lbl">timeout (${m.timeouts[h.team]})</span></span>`);
+        const html = `<div class="ctx">${H.ctx}</div><div class="row pad">${H.rows.join('')}</div>`;
+        if (el._h !== html) { el.innerHTML = html; el._h = html; }
+        return;
+      }
+    }
     const kn = (a) => G.keyName(KB1[a][0]);   // Player 1's key for a move (it changes in two-player games)
     if (Sandbox.park) {
       ctx = 'League Park';
@@ -33844,7 +34183,7 @@ const UI = {
       $('bkWhat').textContent = 'Fumble! Win the pile';
       $('bkLR').textContent = nm(mine); $('bkLT').textContent = nm(them);
       $('bkR').style.transform = `scaleX(${clamp(mine.m, 0, 1)})`; $('bkT').style.transform = `scaleX(${clamp(them.m, 0, 1)})`;
-      $('bkKey').textContent = mine.h && mine.h.dev === G.devs.kb2 ? 'ENTER' : G.keyName(G.settings.mashKey || 'Space');
+      $('bkKey').textContent = mine.h && mine.h.dev === G.devs.kb2 ? 'ENTER' : mine.h && mine.h.dev === G.devs.kb1 && PadCfg.active() ? 'A' : G.keyName(G.settings.mashKey || 'Space');
       $('bkTime').style.transform = `scaleX(${clamp(1 - F.t / F.dur, 0, 1)})`;
       el.classList.toggle('lead', mine.m >= them.m);
       el._fb = true; return;
@@ -33855,7 +34194,7 @@ const UI = {
     const youRun = !!B.hc, key = G.keyName(G.settings.mashKey || 'Space');
     $('bkR').style.transform = `scaleX(${clamp(B.mR, 0, 1)})`;
     $('bkT').style.transform = `scaleX(${clamp(B.mT, 0, 1)})`;
-    $('bkKey').textContent = key;
+    const bh = B.hc || B.ht; $('bkKey').textContent = bh && bh.dev === G.devs.kb1 && PadCfg.active() ? 'A' : key;
     $('bkWhat').textContent = youRun ? 'Break the tackle' : 'Finish the tackle';
     $('bkTime').style.transform = `scaleX(${clamp(1 - B.t / B.dur, 0, 1)})`;
     el.classList.toggle('lead', youRun ? B.mR >= B.mT : B.mT >= B.mR);
@@ -34132,6 +34471,7 @@ const UI = {
       <div class="row2"><button class="ghost" id="pCtlView">Controls view</button>${asSettings ? '<button class="ghost" id="pSetup">Redo first-time setup</button>' : ''}</div>
       ${Cam.career() ? `<div class="field"><label>Road to the League camera</label>${seg('pCamC', Cam.CAREER_CAMS, Cam.careerMode(G.settings.camCareer))}</div>` : ''}
       ${RoadCtl.html(seg)}
+      ${PadCfg.html(seg)}
       <div class="field vol-f"><label>Sound</label><div class="vols">${[['volMaster', 'Master'], ['volMusic', 'In-game music (band)'], ['volMenu', 'Menu music'], ['volCrowd', 'Crowd'], ['volSfx', 'Sound effects'], ['volComm', 'Commentary']].map(([k, n]) => { const v = Math.round((G.settings[k] == null ? 1 : G.settings[k]) * 100); return `<label class="vol"><span>${n}</span><input type="range" min="0" max="100" step="1" value="${v}" data-vol="${k}" aria-label="${n} volume"><b>${v}</b></label>`; }).join('')}</div></div>
       <div class="field"><label>Offense camera</label>${seg('pCamO', Cam.list('off').map(k => [k, CAM_MODES[k].short]), G.settings.camOff)}</div>
       <div class="field"><label>Defense camera</label>${seg('pCamD', Cam.list('def').map(k => [k, CAM_MODES[k].short]), G.settings.camDef)}</div>
@@ -34156,6 +34496,7 @@ const UI = {
     const bind = (id, f) => $(id).querySelectorAll('button').forEach(b => b.onclick = () => { f(b.dataset.v); $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); });
     if ($('pCamC')) bind('pCamC', v => { Cam.setCareer(v); if (v !== 'focus' && RoadCtl.lockOn) RoadCtl.setLock(false); });
     RoadCtl.wire(bind);
+    PadCfg.wire(bind, () => { this.togglePause(); this.togglePause(asSettings); const c = $('cScheme'); c && c.scrollIntoView({ block: 'center' }); });
     // volume sliders: change live (a short sound effect plays on release so you can hear the level)
     ov.querySelectorAll('input[data-vol]').forEach(r => {
       r.oninput = () => { G.settings[r.dataset.vol] = (+r.value) / 100; r.nextElementSibling.textContent = r.value; Sfx.init(); Sfx.applyVol && Sfx.applyVol(); };
