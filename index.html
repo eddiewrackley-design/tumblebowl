@@ -33368,7 +33368,7 @@ const Game = {
     });
     Bus.on('tackle', (d) => {
       if (this.attract) return;
-      if (d.kind === 'big') { this.slow(0.28, 0.75); Sfx.react(d.by && d.by.team, 0.5); if (this.match && this.match.play && this.match.play.live) Bus.emit('banner', { text: 'BIG HIT', sub: `#${d.by.num} ${d.by.name}`, kind: 'good' }); }
+      if (d.kind === 'big') { Sfx.react(d.by && d.by.team, 0.5); if (this.match && this.match.play && this.match.play.live) Bus.emit('banner', { text: 'BIG HIT', sub: `#${d.by.num} ${d.by.name}`, kind: 'good' }); }
     });
     Bus.on('fall', () => {});   // the splash/turf spray comes when the body actually reaches the ground (groundHit)
     Bus.on('helmetOff', (d) => { if (this.attract) return; if (near(d.pos)) { Sfx.hit(7); Sfx.tone(260, 0.18, 0.2, 'square'); Cam.shake += 0.35; } Sfx.react(d.by && d.by.team, 0.7); });
@@ -33388,7 +33388,6 @@ const Game = {
       const perfect = d.grade === 'perfect';
       if (near(d.p.pos)) { Sfx.hit(perfect ? 10 : 8); Cam.shake += perfect ? 0.55 : 0.32; }
       Sfx.react(d.by && d.by.team, perfect ? 1 : 0.7); Gfx.burst(d.p.pos, perfect ? 22 : 13, perfect ? 3.8 : 3, turf());
-      this.slow(perfect ? 0.3 : 0.45, perfect ? 0.6 : 0.4);
       UI.boom(d.by, d.grade);
     });
     // a mistimed shoulder: a quick word over the hitter so the timing can be learned
@@ -33420,7 +33419,7 @@ const Game = {
       this.slow(d.how === 'tip' ? 0.45 : 0.28, d.how === 'tip' ? 0.5 : 0.9);
       if (Gfx.side && d.how !== 'tip') Gfx.side.cheer[d.team] = Math.max(Gfx.side.cheer[d.team] || 0, 4);
     });
-    Bus.on('trucked', (d) => { if (near(d.p.pos)) { Sfx.hit(5); Cam.shake += 0.25; } Sfx.react(d.p && d.p.team, 0.6); Gfx.burst(d.d.pos, 14, 3, turf()); if (!this.attract) this.slow(0.35, 0.5); });
+    Bus.on('trucked', (d) => { if (near(d.p.pos)) { Sfx.hit(5); Cam.shake += 0.25; } Sfx.react(d.p && d.p.team, 0.6); Gfx.burst(d.d.pos, 14, 3, turf()); });
     Bus.on('battle', () => Sfx.cheer(0.15));
     Bus.on('hurdle', (d) => Sfx.react(d.p && d.p.team, 0.35));
     Bus.on('land', (d) => { if (near(d.p.pos)) Sfx.thump(0.35); Gfx.burst(d.p.pos, 6, 2, turf()); });
