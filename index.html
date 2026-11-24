@@ -9049,7 +9049,7 @@ class Match {
      introduced, then Away. About seven seconds; any key skips it. */
   parkEntrance() {
     const P = this.o.park, w = this.w, E = this.ent = { t: -1.8, list: [], intro: [false, false] };   // starts as the matchup card clears
-    const anims = ['flex_big', 'chest_pound', 'arms_crossed', 'dance', 'point_sky', 'fist_pump', 'quick_flex', 'arms_spread', 'line_dance', 'prowl', 'flex_low', 'cross_sway', 'nod', 'swagger_walk'];
+    const anims = ['quick_flex', 'chest_pound', 'arms_crossed', 'dance', 'point_sky', 'fist_pump', 'quick_flex', 'arms_spread', 'line_dance', 'prowl', 'quick_flex', 'cross_sway', 'nod', 'swagger_walk'];   // every flex is the quick flex
     const ps = [];
     for (const t of [0, 1]) this.teams[t].off.filter(p => P.off.includes(p.slot) && !/^AllTime/.test(p.name || '')).forEach((p, i, A) => ps.push({ p, t, i, n: A.length }));
     w.players = ps.map(e => e.p); for (const p of this.all) p.ghost = !w.players.includes(p);
@@ -10179,7 +10179,7 @@ const CELEBRATIONS = [
   // crouch, stand the ball on its point and spin it like a top, then rise behind it doing the 6-7 while it winds down
   { id: 'td_spin', name: 'Ball spin', icon: 'ball', events: ['touchdown'], anim: 'ball_spin', dur: 3.6, sfx: 'cheer', cam: 'orbit', needsBall: true },
   { id: 'td_dance', name: 'Dance', icon: 'dance', events: ['touchdown'], anim: 'dance', dur: 3.2, sfx: 'drum', cam: 'orbit' },
-  { id: 'td_flex', name: 'Flex', icon: 'flex', events: ['touchdown'], anim: 'flex_big', dur: 2.4, sfx: 'cheer', cam: 'orbit' },
+  { id: 'td_flex', name: 'Flex', icon: 'flex', events: ['touchdown'], anim: 'quick_flex', dur: 2.4, sfx: 'cheer', cam: 'orbit' },   // the quick flex (was the big standing flex)
   { id: 'td_spread', name: 'Arms spread', icon: 'spread', events: ['touchdown'], anim: 'arms_spread', dur: 3.0, sfx: 'cheer', cam: 'orbit' },
   { id: 'td_sky', name: 'Point to the sky', icon: 'up', events: ['touchdown'], anim: 'point_sky', dur: 2.6, sfx: 'cheer', cam: 'orbit' },
   { id: 'td_team', name: 'Team celebration', icon: 'team', events: ['touchdown'], anim: 'team_celebration', dur: 3.4, sfx: 'horn', cam: 'orbit', team: 3 },
@@ -10190,7 +10190,7 @@ const CELEBRATIONS = [
     form: { anim: 'line_dance', slots: [[-2.6, -1.7], [2.6, -1.7], [5.0, -2.6]], prefer: ['WR', 'TE', 'RB'] } },
   { id: 'td_trophy', name: 'Personalized · trophy pose', icon: 'trophy', events: ['touchdown'], anim: 'trophy', dur: 2.8, sfx: 'cheer', cam: 'orbit' },
   // tackle for loss
-  { id: 'def_flex', name: 'Defensive flex', icon: 'flex', events: ['tfl', 'sack', 'int', 'fumblerec'], anim: 'flex_low', dur: 1.6, sfx: 'drum', cam: 'close' },
+  { id: 'def_flex', name: 'Defensive flex', icon: 'flex', events: ['tfl', 'sack', 'int', 'fumblerec'], anim: 'quick_flex', dur: 2.4, sfx: 'drum', cam: 'close' },   // the quick flex (was the crouched flex)
   { id: 'fist_pump', name: 'Fist pump', icon: 'fist', events: ['tfl', 'pbu'], anim: 'fist_pump', dur: 1.5, sfx: 'cheer', cam: 'close' },
   { id: 'chest_pound', name: 'Chest pound', icon: 'chest', events: ['tfl', 'bighit', 'pbu'], anim: 'chest_pound', dur: 1.6, sfx: 'drum', cam: 'close' },
   { id: 'quick_pose', name: 'Quick pose', icon: 'pose', events: ['tfl', 'pbu'], anim: 'arms_crossed', dur: 1.5, cam: 'close' },
