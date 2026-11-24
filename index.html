@@ -437,6 +437,49 @@ body:not(:has(#ovMenu:not([hidden]))) .tb-chip { display: none; }
 .pv-row:hover, .pv-row.on { border-color: rgba(242,210,27,0.55); background: rgba(242,210,27,0.07); }
 .pi-tr { background: rgba(255,255,255,0.03); border: 1px solid #2c3642; border-radius: 10px; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; }
 .pi-tr b { width: 100%; font: 800 11px var(--f-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--yellow); } .pi-tr small { width: 100%; color: var(--dim); font-size: 11.5px; }
+/* the settings / pause sheet: tabs, grouped cards, one row style */
+.sheet.set2 { width: min(640px, 100%); padding: 0; display: flex; flex-direction: column; overflow: hidden; height: min(720px, 100%); max-height: 100%; }
+.set2 .shead { padding: 22px 26px 12px; }
+.set2 .shead .sub { margin: 0; }
+.set2 .pacts { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 8px; margin-top: 14px; } .set2 .pacts button { width: 100%; margin: 0; }
+.set2 .shd { margin: 18px 0 0; font: 800 12px var(--f-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+.set2 .stabs { display: flex; gap: 2px; padding: 0 22px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; flex: none; }
+.set2 .stabs::-webkit-scrollbar { display: none; }
+.set2 .stabs button { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--dim); padding: 10px 12px 9px; font: 700 13.5px var(--f-body, inherit); white-space: nowrap; cursor: pointer; margin-bottom: -1px; width: auto; }
+.set2 .stabs button:hover { color: var(--chalk); }
+.set2 .stabs button.on { color: var(--chalk); border-bottom-color: var(--yellow); }
+.set2 .stabs button:focus-visible { outline: 2px solid #58b7ff; outline-offset: -2px; border-radius: 4px; }
+.set2 .spanes { overflow-y: auto; padding: 16px 26px 6px; flex: 1 1 auto; min-height: 260px; }
+.set2 .sgrp { margin: 0 0 16px; }
+.set2 .sgrp h4 { margin: 0 0 6px 2px; font: 800 11.5px var(--f-display); letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); }
+.set2 .sbox { background: rgba(238,241,234,0.035); border: 1px solid var(--line); border-radius: 10px; }
+.set2 .srow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 14px; min-height: 50px; box-sizing: border-box; }
+.set2 .srow + .srow { border-top: 1px solid rgba(238,241,234,0.07); }
+.set2 .sl { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.set2 .sl b { font-weight: 600; font-size: 14.5px; color: var(--chalk); }
+.set2 .sl small { font-size: 12.5px; color: var(--dim); line-height: 1.3; }
+.set2 .sc { flex: none; display: flex; justify-content: flex-end; max-width: 74%; }
+.set2 .sc .seg { flex-wrap: nowrap; } .set2 .sc .seg button { white-space: nowrap; }
+.set2 .sfoot .go, .set2 .pacts .go { font-size: 17px; padding: 10px 18px; }
+.set2 .sc .seg { justify-content: flex-end; background: rgba(0,0,0,0.25); border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 2px; }
+.set2 .sc .seg button { border: 0; background: transparent; border-radius: 6px; padding: 5px 11px; font-size: 13.5px; }
+.set2 .sc .seg button:hover:not(.on) { background: rgba(238,241,234,0.07); }
+.set2 .sc .seg button.on { background: var(--yellow); color: #14130a; }
+.set2 .sc.rng { align-items: center; gap: 10px; width: min(260px, 52%); }
+.set2 .sc.rng input { flex: 1; min-width: 0; accent-color: var(--yellow); margin: 0; }
+.set2 .sc.rng .rv { font: 600 12.5px ui-monospace, monospace; color: var(--dim); min-width: 42px; text-align: right; }
+.set2 .snote { font-size: 12.5px; color: var(--dim); margin: -4px 2px 12px; line-height: 1.45; }
+.set2 .sacts { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; } .set2 .sacts button { width: auto; flex: 1 1 auto; margin: 0; }
+.set2 .spill { display: inline-block; font-size: 13px; color: var(--dim); background: rgba(238,241,234,0.05); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; margin: 0 0 14px; } .set2 .spill.ok { color: var(--good); border-color: rgba(79,209,122,0.35); }
+.set2 .sfoot { display: flex; gap: 8px; justify-content: flex-end; align-items: center; padding: 12px 26px 16px; border-top: 1px solid var(--line); flex: none; }
+.set2 .sfoot:empty { display: none; }
+.set2 .sfoot button { width: auto; margin: 0; } .set2 .sfoot .go { min-width: 140px; margin-left: auto; }
+.set2 button.sm { padding: 8px 14px; font-size: 13.5px; }
+@media (max-width: 560px) {
+  .set2 .shead { padding: 18px 16px 10px; } .set2 .stabs { padding: 0 10px; } .set2 .spanes { padding: 14px 16px 6px; } .set2 .sfoot { padding: 10px 16px 14px; }
+  .set2 .srow { flex-direction: column; align-items: stretch; gap: 8px; } .set2 .sc { max-width: none; justify-content: flex-start; } .set2 .sc .seg { flex-wrap: wrap; } .set2 .sc.rng { width: 100%; } .set2 .sc .seg { justify-content: flex-start; }
+  .set2 .pacts { grid-template-columns: 1fr 1fr; } .set2 .pacts .go { grid-column: 1 / -1; }
+}
 .field.pad-set { display: block; } .field.pad-set > label { display: block; margin-bottom: 6px; } .pad-set .row2 { margin-top: 8px; }
 .pad-set input[type=range] { width: min(220px, 100%); accent-color: var(--yellow); }
 .pad-set .rs-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 6px 0; } .pad-set .rs-row > span { font-size: 14px; color: #cfd7d0; } .pad-set .rs-row small { color: var(--dim); } .pad-set label small.ok { color: var(--good); }
@@ -9154,6 +9197,10 @@ const KB2 = { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: 
    the layout; 'classic' keeps the original fixed layout for anyone who prefers it.
    Every action here is one Tumble Bowl already has: nothing new is invented, only where it sits.
    ============================================================ */
+/* one settings row: the name (and a short note) on the left, the control on the right */
+function srow(label, ctl, note) { return `<div class="srow"><div class="sl"><b>${label}</b>${note ? `<small>${note}</small>` : ''}</div><div class="sc">${ctl}</div></div>`; }
+function sslider(label, attrs, val, shown, note) { return `<div class="srow"><div class="sl"><b>${label}</b>${note ? `<small>${note}</small>` : ''}</div><div class="sc rng"><input type="range" ${attrs} value="${val}" aria-label="${label}"><b class="rv">${shown}</b></div></div>`; }
+function sgroup(title, rows) { return `<section class="sgrp">${title ? `<h4>${title}</h4>` : ''}<div class="sbox">${rows}</div></section>`; }
 const PAD_DEFAULTS = { scheme: 'madden', vib: true, dz: 0.18, sens: 1, cam: 1, invert: false };
 const PAD_COL = { A: '#4fd17a', B: '#e5322d', X: '#58b7ff', Y: '#f2d21b' };
 const PAD_NAME = { A: 'A button', B: 'B button', X: 'X button', Y: 'Y button', LB: 'Left bumper (LB)', RB: 'Right bumper (RB)', LT: 'Left trigger (LT)', RT: 'Right trigger (RT)', LS: 'Left stick', RS: 'Right stick', DP: 'D-pad', VIEW: 'View button', MENU: 'Menu button', L3: 'Left stick click (L3)', R3: 'Right stick click (R3)' };
@@ -9370,14 +9417,14 @@ const PadCfg = {
   /* ---------- Settings → Controller ---------- */
   html(seg) {
     const S = this.S(), g = this.gp();
-    return `<div class="field pad-set"><label>Controller ${g ? `<small class="ok">· ${esc(g.id.replace(/\(.*?\)/g, '').trim().slice(0, 34) || 'connected')}</small>` : '<small>· none connected</small>'}</label>
-      <div class="rs-row"><span>Button layout</span>${seg('cScheme', [['madden', 'Madden-style'], ['classic', 'Classic']], S.scheme === 'classic' ? 'classic' : 'madden')}</div>
-      <div class="rs-row"><span>Vibration${g && !g.vibrationActuator ? ' <small>(not supported by this controller / browser)</small>' : ''}</span>${seg('cVib', [['1', 'On'], ['0', 'Off']], S.vib ? '1' : '0')}</div>
-      <div class="rs-row"><span>Stick sensitivity <b id="cSensV">${S.sens.toFixed(2)}×</b></span><input type="range" id="cSens" min="70" max="150" step="5" value="${Math.round(S.sens * 100)}" aria-label="Stick sensitivity"></div>
-      <div class="rs-row"><span>Stick deadzone <b id="cDzV">${Math.round(S.dz * 100)}%</b></span><input type="range" id="cDz" min="5" max="35" step="1" value="${Math.round(S.dz * 100)}" aria-label="Stick deadzone"></div>
-      <div class="rs-row"><span>Camera stick speed <b id="cCamV">${S.cam.toFixed(2)}×</b></span><input type="range" id="cCam" min="40" max="200" step="10" value="${Math.round(S.cam * 100)}" aria-label="Camera stick speed"></div>
-      <div class="rs-row"><span>Invert camera (right stick up/down)</span>${seg('cInv', [['0', 'Off'], ['1', 'On']], S.invert ? '1' : '0')}</div>
-      <div class="row2"><button class="ghost" id="cMap">Button mapping</button><button class="ghost" id="cRst">Restore default controls</button></div></div>`;
+    return `<div class="spill ${g ? 'ok' : ''}">${g ? '● ' + esc(g.id.replace(/\(.*?\)/g, '').trim().slice(0, 40) || 'Controller connected') : '○ No controller connected · plug one in or press a button on it'}</div>`
+      + sgroup('Layout', srow('Button layout', seg('cScheme', [['madden', 'Madden-style'], ['classic', 'Classic']], S.scheme === 'classic' ? 'classic' : 'madden'), 'Madden-style buttons change with what you\'re doing')
+        + srow('Vibration', seg('cVib', [['1', 'On'], ['0', 'Off']], S.vib ? '1' : '0'), g && !g.vibrationActuator ? 'Not supported by this controller / browser' : 'Rumble on hits, tackles and catches'))
+      + sgroup('Sticks', `<div class="srow"><div class="sl"><b>Stick sensitivity</b></div><div class="sc rng"><input type="range" id="cSens" min="70" max="150" step="5" value="${Math.round(S.sens * 100)}" aria-label="Stick sensitivity"><b class="rv" id="cSensV">${S.sens.toFixed(2)}×</b></div></div>`
+        + `<div class="srow"><div class="sl"><b>Stick deadzone</b></div><div class="sc rng"><input type="range" id="cDz" min="5" max="35" step="1" value="${Math.round(S.dz * 100)}" aria-label="Stick deadzone"><b class="rv" id="cDzV">${Math.round(S.dz * 100)}%</b></div></div>`
+        + `<div class="srow"><div class="sl"><b>Camera stick speed</b></div><div class="sc rng"><input type="range" id="cCam" min="40" max="200" step="10" value="${Math.round(S.cam * 100)}" aria-label="Camera stick speed"><b class="rv" id="cCamV">${S.cam.toFixed(2)}×</b></div></div>`
+        + srow('Invert camera', seg('cInv', [['0', 'Off'], ['1', 'On']], S.invert ? '1' : '0'), 'Right stick up / down'))
+      + `<div class="sacts"><button class="ghost sm" id="cMap">Button mapping</button><button class="ghost sm" id="cRst">Restore default controls</button></div>`;
   },
   wire(bind, reopen) {
     const S = this.S(), save = () => Game.saveSettings();
@@ -32284,15 +32331,14 @@ const RoadCtl = {
   /* the Road section of the settings panel */
   html(seg) {
     const S = this.S();
-    return `<div class="field road-set"><label>Road to the League · camera & controls</label>
-      <div class="rs-row"><span>Player-Focused Camera</span>${seg('rFocus', [['1', 'On'], ['0', 'Off']], Game.settings.camCareer === 'focus' ? '1' : '0')}</div>
-      <div class="rs-row"><span>Shift Lock</span>${seg('rLock', [['1', 'On'], ['0', 'Off']], this.lockOn ? '1' : '0')}</div>
-      <div class="rs-row"><span>Shift Lock key</span>${seg('rLockK', [['ControlLeft', 'Left Ctrl'], ['ControlRight', 'Right Ctrl'], ['CapsLock', 'Caps Lock']], S.lockKey)}</div>
-      <label class="vol"><span>Camera sensitivity</span><input type="range" min="30" max="250" step="5" value="${Math.round(S.sens * 100)}" id="rSens" aria-label="Camera sensitivity"><b>${Math.round(S.sens * 100)}</b></label>
-      <label class="vol"><span>Camera distance</span><input type="range" min="60" max="160" step="5" value="${Math.round(S.dist * 100)}" id="rDist" aria-label="Camera distance"><b>${Math.round(S.dist * 100)}</b></label>
-      <div class="rs-row"><span>Invert camera (up/down)</span>${seg('rInv', [['0', 'Off'], ['1', 'On']], S.invert ? '1' : '0')}</div>
-      <p class="rs-keys">Left Shift sprint · ${this.keyLabel(S.lockKey)} Shift Lock · Space jump (on a route before the throw: call for the ball) · right-drag or the right stick turns the camera · scroll zooms</p>
-      <button class="ghost" id="rReset">Restore default settings</button></div>`;
+    return sgroup('Camera', srow('Player-Focused Camera', seg('rFocus', [['1', 'On'], ['0', 'Off']], Game.settings.camCareer === 'focus' ? '1' : '0'), 'Over-the-shoulder camera on your player')
+        + sslider('Camera sensitivity', 'min="30" max="250" step="5" id="rSens"', Math.round(S.sens * 100), Math.round(S.sens * 100))
+        + sslider('Camera distance', 'min="60" max="160" step="5" id="rDist"', Math.round(S.dist * 100), Math.round(S.dist * 100))
+        + srow('Invert camera', seg('rInv', [['0', 'Off'], ['1', 'On']], S.invert ? '1' : '0'), 'Up / down'))
+      + sgroup('Shift Lock', srow('Shift Lock', seg('rLock', [['1', 'On'], ['0', 'Off']], this.lockOn ? '1' : '0'), 'Your player always faces where the camera looks')
+        + srow('Shift Lock key', seg('rLockK', [['ControlLeft', 'Left Ctrl'], ['ControlRight', 'Right Ctrl'], ['CapsLock', 'Caps Lock']], S.lockKey)))
+      + `<p class="snote">Left Shift sprint · ${this.keyLabel(S.lockKey)} Shift Lock · Space jump (on a route before the throw: call for the ball) · right-drag or the right stick turns the camera · scroll zooms</p>
+      <div class="sacts"><button class="ghost sm" id="rReset">Restore Road defaults</button></div>`;
   },
   wire(bind) {
     const S = this.S();
@@ -34467,36 +34513,46 @@ const UI = {
     if (!G.paused) { ov.hidden = true; return; }
     this.settingsOnly = !!asSettings;
     const seg = (id, opts, cur) => `<div class="seg" id="${id}">${opts.map(([v, l]) => `<button data-v="${v}" class="${v === cur ? 'on' : ''}">${l}</button>`).join('')}</div>`;
-    ov.innerHTML = `<div class="sheet" style="width:min(520px,100%)"><h2>Paused</h2><p class="sub">${G.mode === 'sandbox' ? 'Physics sandbox' : G.match ? `${G.match.teamDefs[0].abbr} ${G.match.score[0]} – ${G.match.score[1]} ${G.match.teamDefs[1].abbr}` : ''}</p>
-      <div class="row2"><button class="ghost" id="pCtlView">Controls view</button>${asSettings ? '<button class="ghost" id="pSetup">Redo first-time setup</button>' : ''}</div>
-      ${Cam.career() ? `<div class="field"><label>Road to the League camera</label>${seg('pCamC', Cam.CAREER_CAMS, Cam.careerMode(G.settings.camCareer))}</div>` : ''}
-      ${RoadCtl.html(seg)}
-      ${PadCfg.html(seg)}
-      <div class="field vol-f"><label>Sound</label><div class="vols">${[['volMaster', 'Master'], ['volMusic', 'In-game music (band)'], ['volMenu', 'Menu music'], ['volCrowd', 'Crowd'], ['volSfx', 'Sound effects'], ['volComm', 'Commentary']].map(([k, n]) => { const v = Math.round((G.settings[k] == null ? 1 : G.settings[k]) * 100); return `<label class="vol"><span>${n}</span><input type="range" min="0" max="100" step="1" value="${v}" data-vol="${k}" aria-label="${n} volume"><b>${v}</b></label>`; }).join('')}</div></div>
-      <div class="field"><label>Offense camera</label>${seg('pCamO', Cam.list('off').map(k => [k, CAM_MODES[k].short]), G.settings.camOff)}</div>
-      <div class="field"><label>Defense camera</label>${seg('pCamD', Cam.list('def').map(k => [k, CAM_MODES[k].short]), G.settings.camDef)}</div>
-      <div class="field"><label>Sideline cutscenes</label>${seg('pCut', [['on', 'On'], ['off', 'Off']], G.settings.cutscenes === false ? 'off' : 'on')}</div>
-      <div class="field"><label>Camera key</label>${seg('pCamK', [['KeyV', 'V'], ['KeyN', 'N'], ['KeyH', 'H']], G.settings.camKey || 'KeyV')}</div>
-      <div class="field"><label>Weather particles</label>${seg('pWxQ', [['1', 'Full'], ['0.45', 'Reduced']], String(G.settings.wxQ || 1))}</div>
-      <div class="field"><label>Debug view</label>${seg('pDbg', [['1', 'On'], ['0', 'Off']], G.debug ? '1' : '0')}</div>
-      <div class="field"><label>Auto replays</label>${seg('pRep', [['1', 'On'], ['0', 'Off']], G.autoReplay ? '1' : '0')}</div>
-      <div class="field"><label>Sound</label>${seg('pSnd', [['1', 'On'], ['0', 'Off']], Sfx.muted ? '0' : '1')}</div>
-      <div class="field"><label>Touch controls</label>${seg('pTouch', [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], G.settings.touch || 'auto')}</div>
-      <div class="field"><label>Tackle battles</label>${seg('pBat', [['1', 'Mash to win'], ['0', 'Automatic']], G.settings.battles !== false ? '1' : '0')}</div>
-      <div class="field"><label>Mash key</label>${seg('pMash', [['Space', 'Space'], ['KeyV', 'V'], ['KeyB', 'B']], G.settings.mashKey || 'Space')}</div>
-      <div class="field"><label>Jump balls</label>${seg('pJb', [['1', 'Mash to win'], ['0', 'Automatic']], G.settings.jumpBalls !== false ? '1' : '0')}</div>
-      <div class="field"><label>Contest key · CPU</label><div style="display:flex;gap:10px;flex-wrap:wrap">${seg('pJbK', [['KeyE', 'E'], ['KeyF', 'F'], ['Space', 'Space']], G.settings.jumpKey || 'KeyE')}${seg('pJbC', [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard'], ['elite', 'Elite']], G.settings.jbCpu || 'normal')}</div></div>
-      <div class="field"><label>Celebration wheel</label>${seg('pCw', [['1', 'On'], ['0', 'Off']], G.settings.celebWheel !== false ? '1' : '0')}</div>
-      <div class="field"><label>Wheel · quick keys</label><div style="display:flex;gap:10px;flex-wrap:wrap">${seg('pCk', [['KeyC', 'C'], ['KeyG', 'G']], G.settings.celebKey || 'KeyC')}${seg('pCq', [['KeyX', 'X'], ['KeyZ', 'Z'], ['KeyY', 'Y']], G.settings.celebQuick || 'KeyX')}</div></div>
-      <div class="field"><label>Truck key</label>${seg('pTruck', [['KeyI', 'I'], ['KeyE', 'E'], ['KeyU', 'U']], G.settings.truckKey || 'KeyI')}</div>
-      ${asSettings ? '<div class="row2"><button class="go" id="pRes">Done</button></div>' : `<div class="row2"><button class="go" id="pRes">Resume</button></div>
-      <div class="row2"><button class="ghost" id="pRst">Restart</button><button class="ghost" id="pQuit">Quit to menu</button></div>`}</div>`;
-    if (asSettings) { const h = ov.querySelector('h2'); if (h) h.textContent = 'Settings'; const sb = ov.querySelector('.sub'); if (sb) sb.textContent = 'Saved on this device'; }
+    const V = (k) => Math.round((G.settings[k] == null ? 1 : G.settings[k]) * 100);
+    const TABS = [['game', 'Gameplay'], ['cam', 'Camera'], ['audio', 'Audio'], ['keys', 'Keyboard'], ['pad', 'Controller'], ['road', 'Road to the League']];
+    const tab = TABS.some(t => t[0] === this.setTab) ? this.setTab : 'game';
+    const panes = {
+      game: sgroup('Battles', srow('Tackle battles', seg('pBat', [['1', 'Mash to win'], ['0', 'Automatic']], G.settings.battles !== false ? '1' : '0'), 'Mash when you\'re wrapped up, or let the ratings decide')
+          + srow('Jump balls', seg('pJb', [['1', 'Mash to win'], ['0', 'Automatic']], G.settings.jumpBalls !== false ? '1' : '0'))
+          + srow('Jump-ball CPU', seg('pJbC', [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard'], ['elite', 'Elite']], G.settings.jbCpu || 'normal'), 'How hard the CPU contests'))
+        + sgroup('Presentation', srow('Celebration wheel', seg('pCw', [['1', 'On'], ['0', 'Off']], G.settings.celebWheel !== false ? '1' : '0'))
+          + srow('Auto replays', seg('pRep', [['1', 'On'], ['0', 'Off']], G.autoReplay ? '1' : '0'))
+          + srow('Sideline cutscenes', seg('pCut', [['on', 'On'], ['off', 'Off']], G.settings.cutscenes === false ? 'off' : 'on')))
+        + sgroup('Device', srow('Touch controls', seg('pTouch', [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], G.settings.touch || 'auto'))
+          + srow('Debug view', seg('pDbg', [['1', 'On'], ['0', 'Off']], G.debug ? '1' : '0'))),
+      cam: sgroup('Game camera', (Cam.career() ? srow('Road to the League', seg('pCamC', Cam.CAREER_CAMS, Cam.careerMode(G.settings.camCareer))) : '')
+          + srow('On offense', seg('pCamO', Cam.list('off').map(k => [k, CAM_MODES[k].short]), G.settings.camOff))
+          + srow('On defense', seg('pCamD', Cam.list('def').map(k => [k, CAM_MODES[k].short]), G.settings.camDef)))
+        + sgroup('Display', srow('Weather particles', seg('pWxQ', [['1', 'Full'], ['0.45', 'Reduced']], String(G.settings.wxQ || 1)), 'Reduce if rain or snow slows the game down')),
+      audio: sgroup('', srow('Sound', seg('pSnd', [['1', 'On'], ['0', 'Off']], Sfx.muted ? '0' : '1')))
+        + sgroup('Volume', [['volMaster', 'Master'], ['volMusic', 'In-game music', 'The band'], ['volMenu', 'Menu music'], ['volCrowd', 'Crowd'], ['volSfx', 'Sound effects'], ['volComm', 'Commentary']].map(([k, n, note]) => sslider(n, `min="0" max="100" step="1" data-vol="${k}"`, V(k), V(k), note)).join('')),
+      keys: sgroup('Keys', srow('Mash key', seg('pMash', [['Space', 'Space'], ['KeyV', 'V'], ['KeyB', 'B']], G.settings.mashKey || 'Space'), 'Tackle battles')
+          + srow('Jump-ball key', seg('pJbK', [['KeyE', 'E'], ['KeyF', 'F'], ['Space', 'Space']], G.settings.jumpKey || 'KeyE'))
+          + srow('Truck key', seg('pTruck', [['KeyI', 'I'], ['KeyE', 'E'], ['KeyU', 'U']], G.settings.truckKey || 'KeyI'))
+          + srow('Camera key', seg('pCamK', [['KeyV', 'V'], ['KeyN', 'N'], ['KeyH', 'H']], G.settings.camKey || 'KeyV'), 'Cycles the camera in a game')
+          + srow('Celebration wheel', seg('pCk', [['KeyC', 'C'], ['KeyG', 'G']], G.settings.celebKey || 'KeyC'))
+          + srow('Quick celebration', seg('pCq', [['KeyX', 'X'], ['KeyZ', 'Z'], ['KeyY', 'Y']], G.settings.celebQuick || 'KeyX')))
+        + `<div class="sacts"><button class="ghost sm" id="pCtlView2">See every control</button></div>`,
+      pad: PadCfg.html(seg),
+      road: RoadCtl.html(seg),
+    };
+    const head = asSettings ? `<h2>Settings</h2><p class="sub">Saved on this device</p>` : `<h2>Paused</h2><p class="sub">${G.mode === 'sandbox' ? 'Physics sandbox' : G.match ? `${G.match.teamDefs[0].abbr} ${G.match.score[0]} – ${G.match.score[1]} ${G.match.teamDefs[1].abbr}` : ''}</p>
+      <div class="pacts"><button class="go" id="pRes">Resume</button><button class="ghost" id="pRst">Restart</button><button class="ghost" id="pQuit">Quit to menu</button></div><h3 class="shd">Settings</h3>`;
+    ov.innerHTML = `<div class="sheet set2"><div class="shead">${head}</div>
+      <nav class="stabs" role="tablist">${TABS.map(([k, n]) => `<button role="tab" data-tab="${k}" class="${k === tab ? 'on' : ''}" aria-selected="${k === tab}">${n}</button>`).join('')}</nav>
+      <div class="spanes">${TABS.map(([k]) => `<div class="spane" data-pane="${k}" ${k === tab ? '' : 'hidden'}>${panes[k]}</div>`).join('')}</div>
+      <div class="sfoot"><button class="ghost sm" id="pCtlView">Controls view</button>${asSettings ? '<button class="ghost sm" id="pSetup">Redo first-time setup</button><button class="go" id="pRes">Done</button>' : ''}</div></div>`;
+    ov.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { Sfx.click && Sfx.click(); this.setTab = b.dataset.tab; ov.querySelectorAll('[data-tab]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', x === b); }); ov.querySelectorAll('.spane').forEach(p => p.hidden = p.dataset.pane !== this.setTab); });
     ov.hidden = false;
     const bind = (id, f) => $(id).querySelectorAll('button').forEach(b => b.onclick = () => { f(b.dataset.v); $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); });
     if ($('pCamC')) bind('pCamC', v => { Cam.setCareer(v); if (v !== 'focus' && RoadCtl.lockOn) RoadCtl.setLock(false); });
     RoadCtl.wire(bind);
-    PadCfg.wire(bind, () => { this.togglePause(); this.togglePause(asSettings); const c = $('cScheme'); c && c.scrollIntoView({ block: 'center' }); });
+    PadCfg.wire(bind, () => { this.togglePause(); this.togglePause(asSettings); });
     // volume sliders: change live (a short sound effect plays on release so you can hear the level)
     ov.querySelectorAll('input[data-vol]').forEach(r => {
       r.oninput = () => { G.settings[r.dataset.vol] = (+r.value) / 100; r.nextElementSibling.textContent = r.value; Sfx.init(); Sfx.applyVol && Sfx.applyVol(); };
@@ -34521,7 +34577,7 @@ const UI = {
     bind('pCk', v => { G.settings.celebKey = v; if (G.settings.celebQuick === v) G.settings.celebQuick = 'KeyX'; G.saveSettings(); });
     bind('pCq', v => { G.settings.celebQuick = v; G.saveSettings(); });
     $('pRes').onclick = () => this.togglePause();
-    $('pCtlView').onclick = () => { Sfx.click && Sfx.click(); Onboard.openControls(); };
+    $('pCtlView').onclick = $('pCtlView2').onclick = () => { Sfx.click && Sfx.click(); Onboard.openControls(); };
     if ($('pSetup')) $('pSetup').onclick = () => { Sfx.click && Sfx.click(); this.togglePause(); Onboard.start(() => UI.title()); };
     if ($('pRst')) $('pRst').onclick = () => { this.togglePause(); G.restart(); };
     if ($('pQuit')) $('pQuit').onclick = () => { this.togglePause(); G.toMenu(); };
