@@ -2590,7 +2590,7 @@ class Player {
   fall(impulse, upperBias = 0.4, reason = 'hit', spin = 0) {
     if (this.state === 'fallen') return;
     this.state = 'fallen';
-    this.fallT = 0; this.restT = 0;
+    this.fallT = 0; this.restT = 0; this.diveArms = null;
     this.groundedT = -1;
     this.act = null;
     if (this.grab) { const t = this.grab; t.grabbedBy = t.grabbedBy.filter(g => g !== this); this.grab = null; }
@@ -2661,6 +2661,18 @@ class Player {
         }
       }
     }
+    // a dive: both arms locked straight out ahead of him, reaching, until he's down and sliding
+    if (this.diveArms && this.fallT < 0.8) {
+      const d = this.diveArms, H = this.H, k = this.fallT < 0.6 ? 0.65 : 0.65 * (0.8 - this.fallT) / 0.2;
+      for (const [S, E, Hd] of [[J.LS, J.LE, J.LHA], [J.RS, J.RE, J.RHA]]) {
+        const sh = jts[S];
+        const ex = sh.x + d.x * 0.31 * H, ey = Math.max(JRAD[E], sh.y + d.y * 0.31 * H), ez = sh.z + d.z * 0.31 * H;
+        const hx = sh.x + d.x * 0.6 * H, hy = Math.max(JRAD[Hd], sh.y + d.y * 0.6 * H), hz = sh.z + d.z * 0.6 * H;
+        const e = jts[E], h = jts[Hd];
+        e.x += (ex - e.x) * k; e.y += (ey - e.y) * k; e.z += (ez - e.z) * k;
+        h.x += (hx - h.x) * k; h.y += (hy - h.y) * k; h.z += (hz - h.z) * k;
+      }
+    }
     const pel = jts[J.PEL];
     this.vel.set((pel.x - prev[J.PEL].x) / dt, 0, (pel.z - prev[J.PEL].z) / dt);
     this.pos.set(pel.x, 0, pel.z);
@@ -2668,7 +2680,7 @@ class Player {
     if (this.canRise && ((this.restT > 0.5 && this.fallT > 1.1) || this.fallT > 3.5)) this.beginRise();
   }
   beginRise() {
-    this.state = 'rising'; this.riseT = 0;
+    this.state = 'rising'; this.riseT = 0; this.diveArms = null;
     // a hard hit, a tired body or a big man takes longer to get up
     this.riseDur = clamp(0.95 + 0.25 * (1 - this.stamina) + 0.12 * (this.lastImpact > 4 ? 1 : 0) + (this.mass - 100) * 0.003 + rand(-0.1, 0.15), 0.85, 1.5);
     for (let i = 0; i < NJ; i++) this.riseFrom[i].copy(this.joints[i]);
@@ -4034,6 +4046,23 @@ class World {
   }
   /* the chop: trailing a faster runner, or with no angle to square up, the defender throws himself flat at
      full extension at the runner's ankles, leading the feet. Low and horizontal, not the high dive. */
+  /* a low, flat dive at the legs: the body pitches forward fast about the hips (head and arms going down and out,
+     feet coming up behind) so he's horizontal at shin height by the time he gets there, arms straight out */
+  lowDive(p, f, fwd) {
+    p.fall(f.clone().multiplyScalar(fwd).add(new V3(0, -0.6, 0)), 0.45, 'dive');
+    // he launches out of a deep crouch: the whole body starts low (shape kept, no velocity added)...
+    const drop = 0.34 * p.H;
+    for (let i = 0; i < NJ; i++) { const jt = p.joints[i], d = Math.min(drop, Math.max(0, jt.y - JRAD[i])); jt.y -= d; p.prev[i].y -= d; }
+    // ...and pitches forward about the hips while it drops toward the turf
+    const pel = p.joints[J.PEL], W = 3.6, ax = new V3().crossVectors(UP, f);
+    for (let i = 0; i < NJ; i++) {
+      const jt = p.joints[i], rx = jt.x - pel.x, ry = jt.y - pel.y, rz = jt.z - pel.z;
+      // v = W (ax × rel), the legs kept from swinging up over him
+      const vx = W * (ax.y * rz - ax.z * ry), vy = W * (ax.z * rx - ax.x * rz) * (ry < 0 ? 0.45 : 1), vz = W * (ax.x * ry - ax.y * rx);
+      p.prev[i].x -= vx * DT; p.prev[i].y -= (vy - 0.7) * DT; p.prev[i].z -= vz * DT;
+    }
+    p.diveArms = new V3(f.x, -0.18, f.z).normalize();
+  }
   chopDive(p) {
     if (p.state !== 'up' || p.hasBall) return;
     const c = this.carrier(); if (!c || c.team === p.team) return this.dive(p);
@@ -4043,7 +4072,7 @@ class World {
     p.vel.addScaledVector(f, 3.6);
     this.attempts = this.attempts.filter(A => A.t !== p);   // the chop replaces whatever lunge he had going
     this.startAttempt(p, c, 'dive', 1.0);
-    p.fall(f.clone().multiplyScalar(3.8).add(new V3(0, 0.55, 0)), 0.75, 'dive');   // flat and low: arms out ahead at shin height
+    this.lowDive(p, f, 3.8);   // flat and low: arms out ahead at shin height
     Bus.emit('dive', { p, chop: true });
   }
   dive(p) {
@@ -4055,13 +4084,14 @@ class World {
       f.subVectors(lead, p.pos).setY(0).normalize();
     }
     // coming at him head-on: go low, flat out at his ankles (arms reaching for the shins), not up at his chest
-    const headOn = !p.hasBall && c && c.team !== p.team && hdist(c.pos, p.pos) < 4 && (c.vel.x * (p.pos.x - c.pos.x) + c.vel.z * (p.pos.z - c.pos.z)) > 0.3 * hdist(c.pos, p.pos);
+    // (anything but chasing him from behind, which is the chop: that's handled by chopDive)
+    const headOn = !p.hasBall && c && c.team !== p.team && hdist(c.pos, p.pos) < 4.5;
     if (headOn) {
       p.chop = true; p.diving = true; p.mv = null;
       p.vel.addScaledVector(f, 2.8);
       this.attempts = this.attempts.filter(A => A.t !== p);
       this.startAttempt(p, c, 'dive', 1.0);
-      p.fall(f.clone().multiplyScalar(3.4).add(new V3(0, 0.45, 0)), 0.78, 'dive');
+      this.lowDive(p, f, 3.4);
       Bus.emit('dive', { p, chop: true, headOn: true });
       return;
     }
@@ -4071,6 +4101,7 @@ class World {
     if (p.hasBall) p.gaveUp = true;
     p.mv = null;
     p.fall(f.clone().multiplyScalar(2.6).add(new V3(0, 2.4, 0)), 0.9, 'dive');
+    if (!p.hasBall) p.diveArms = new V3(f.x, 0.05, f.z).normalize();
     Bus.emit('dive', { p });
   }
 
