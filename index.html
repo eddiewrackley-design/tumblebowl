@@ -2722,11 +2722,11 @@ class Player {
     if (this.state === 'up' && !this.stance && sp > 2.2 && !this.hasBall && !this.act) { const dTurn = wrapAng(Math.atan2(this.vel.z, this.vel.x) - this.heading); if (Math.abs(dTurn) > 0.6 && Math.abs(dTurn) < 2.6 && !this.faceDir) fx.twist = (fx.twist || 0) + clamp(dTurn * 0.3, -0.45, 0.45); }
     S.tw += ((fx.twist || 0) - S.tw) * kS;
     fx.twist = S.tw;
-    const lean = _p.u.set(0, 1, 0).addScaledVector(f, this.leanF + S.lf + (tst === 'low' ? 0.5 : tst === 'shoulder' ? 0.22 : tst === 'form' ? 0.12 : 0)).addScaledVector(r, this.leanS + S.ls).normalize();
+    const lean = _p.u.set(0, 1, 0).addScaledVector(f, this.leanF + S.lf + (tst === 'low' ? 0.5 : tst === 'shoulder' ? 0.22 : tst === 'form' ? 0.12 : 0) + (tst && this.human ? 0.4 : tst ? 0.2 : 0)).addScaledVector(r, this.leanS + S.ls).normalize();
     let crouch = Math.max(this.crouch, fx.crouch, 0.38 * bp, S.land / 0.28 * 0.42);
     if (this.stance === '3pt' || this.stance === 'hold') crouch = 1; else if (this.stance === '2pt') crouch = 0.45; else if (this.stance === 'qb') crouch = 0.15;
     else if (this.stance === 'wr') crouch = 0.3; else if (this.stance === 'cb') crouch = 0.62;
-    if (this.is('tackle') || this.is('block')) crouch = Math.max(crouch, tst === 'low' ? 0.8 : tst === 'shoulder' ? 0.5 : 0.35);
+    if (this.is('tackle') || this.is('block')) crouch = Math.max(crouch, tst === 'low' ? 0.8 : tst === 'shoulder' ? 0.5 : this.is('tackle') ? 0.58 : 0.35);   // the strike: sunk at the hips, ready to fire
     if (this.contact > 0) crouch = Math.max(crouch, 0.45);
     // ease into and out of crouches (stances snap at the snap, as they should)
     if (!this.stance) { S.cr += (crouch - S.cr) * kC; crouch = S.cr; } else S.cr = crouch;
@@ -2914,8 +2914,12 @@ class Player {
           // the arms stop short instead of stretching to the target.
           const tg = a.type === 'wrap' ? this.grab : this.tackleTarget;
           const low = this.tackleStyle === 'low' || this.tackleStyle === 'dive';
+          // the strike: a tackle (J) starts loaded (hands cocked back at the hips, chest over the knees), then the
+          // arms shoot out wide and close around him
+          const strike = a.type === 'tackle' ? smooth(clamp((a.t - 0.06) / 0.14, 0, 1)) : 1;
+          const tdMv = this.td && this.td.move, legsHold = tdMv === 'chop' || tdMv === 'legwrap' || tdMv === 'scoop';
           if (tg && tg.state !== 'fallen' && Math.hypot(tg.pos.x - this.pos.x, tg.pos.z - this.pos.z) < 2.2) {
-            const tj = tg.joints, lvl = low ? -0.25 : this.tackleStyle === 'shoulder' ? 0.55 : 0.28;
+            const tj = tg.joints, lvl = legsHold ? -0.8 : low ? -0.45 : this.tackleStyle === 'shoulder' ? 0.55 : 0.28;
             const mid = _p.h1.copy(tj[J.PEL]).lerp(lvl >= 0 ? tj[J.NECK] : _p.h4.copy(tj[J.LK]).lerp(tj[J.RK], 0.5), Math.abs(lvl));
             const tr = _p.h2.subVectors(tj[J.RS], tj[J.LS]).setY(0); const tl = tr.length() || 1; tr.divideScalar(tl);
             const into = _p.h3.set(mid.x - P.x, 0, mid.z - P.z); const il = into.length() || 1; into.divideScalar(il);
@@ -2923,12 +2927,21 @@ class Player {
             const side = tr.dot(r) >= 0 ? 1 : -1, w = 0.17 * tg.H;
             L.copy(mid).addScaledVector(tr, -side * w).addScaledVector(into, 0.1 * tg.H);
             R.copy(mid).addScaledVector(tr, side * w).addScaledVector(into, 0.1 * tg.H);
+            if (strike < 1) {
+              // still loading: hands back at the hips, about to fire them round him
+              const lh = _p.h4.copy(jt[J.PEL]).addScaledVector(f, 0.12 * H).addScaledVector(r, -0.2 * H).addScaledVector(UP, 0.08 * H);
+              L.lerpVectors(lh, L, strike);
+              lh.copy(jt[J.PEL]).addScaledVector(f, 0.12 * H).addScaledVector(r, 0.2 * H).addScaledVector(UP, 0.08 * H);
+              R.lerpVectors(lh, R, strike);
+            }
             // a one-arm tackle: only the near hand has a fistful of jersey, the other arm swings out for balance
             if (this.td && this.td.move === 'onearm') { const far = side > 0 ? L : R, fs = side > 0 ? jt[J.LS] : jt[J.RS]; far.copy(fs).addScaledVector(UP, -0.25 * H).addScaledVector(f, -0.15 * H).addScaledVector(r, (side > 0 ? -1 : 1) * 0.3 * H); }
           } else {
-            const lo = low ? -0.42 : 0;
-            L.copy(chest).addScaledVector(f, 0.55).addScaledVector(r, -0.32).addScaledVector(UP, lo);
-            R.copy(chest).addScaledVector(f, 0.55).addScaledVector(r, 0.32).addScaledVector(UP, lo);
+            // nobody in reach yet: the striking position. Loaded at the hips, then both arms thrown out wide and
+            // forward, ready to close round whoever is there
+            const lo = low ? -0.42 : -0.05, op = 1 - 0.35 * clamp((a.t - 0.22) / 0.2, 0, 1);
+            L.copy(chest).addScaledVector(f, 0.6 * (0.3 + 0.7 * strike)).addScaledVector(r, -(0.2 + 0.22 * strike * op)).addScaledVector(UP, lo - 0.18 * (1 - strike));
+            R.copy(chest).addScaledVector(f, 0.6 * (0.3 + 0.7 * strike)).addScaledVector(r, (0.2 + 0.22 * strike * op)).addScaledVector(UP, lo - 0.18 * (1 - strike));
           }
           break;
         }
@@ -3500,7 +3513,7 @@ class World {
     const shake = c.mv && (c.mv.kind === 'juke' || c.mv.kind === 'juke2' || c.mv.kind === 'speedcut' || c.mv.kind === 'sidestep') ? 1.6 : 0;
     const mirror = 2.4 + 3.2 * t.agility * (0.6 + 0.4 * t.balance) + (style === 'dive' ? 1.5 : 0) + 1.3 * (t.closeK || 0);   // broken down under control, he can mirror the cut
     const missRisk = (t.persona === 'wrap' ? 0.65 : t.persona === 'hitter' ? 1.25 : 1) * (style === 'arm' ? 1 : style === 'open' ? 0.55 : style === 'low' && facing > 0.35 ? 0.35 : 0.15) * clamp((lat + shake - mirror) / 3, 0, 1) + (style === 'arm' && squared < 0 ? 0.25 : 0);
-    if (missRisk > 0 && chance(missRisk)) {
+    if (missRisk > 0 && chance(missRisk * (t.human && t.is('tackle') ? 0.55 : 1))) {
       t.cool.tackle = 1.0; t.wantsTackle = false;
       if (t.is('tackle') || style === 'arm') { t.balance = Math.max(0.1, t.balance - 0.35); t.startAct('stumble', 0.5); t.vel.multiplyScalar(0.8); }
       Bus.emit('broken', { p: c, by: t, kind: 'slip' });   // touched him but couldn't hold on
@@ -3564,7 +3577,11 @@ class World {
         return;
       }
       // an ordinary clean takedown: he grabs him and brings him down (takedown.js) rather than dropping him on contact
-      if (!big && this.startTakedown && c.state === 'up' && c.y <= 0.05 && style !== 'arm' && t.state === 'up') {
+      if (!big && this.startTakedown && c.state === 'up' && c.y <= 0.3 && style === 'arm' && t.state === 'up') {
+        this.startTakedown(t, c, n, c.fwd(_w.a).dot(n) > 0.2 ? 'onearm' : 'yank', { kind: style, style, extra: { power, ratio } });
+        return;
+      }
+      if (!big && this.startTakedown && c.state === 'up' && c.y <= 0.3 && style !== 'arm' && t.state === 'up') {
         this.startTakedown(t, c, n, this.pickTakedown(t, c, n, style, ratio), { kind: style, style, extra: { power, ratio } });
         return;
       }
@@ -3590,6 +3607,12 @@ class World {
     } else if (ratio > 0.42) {
       // a hand or an arm on him: he hangs on and gets dragged until the runner goes down or shakes him
       this.startGrab(t, c, n, style, k);
+    } else if (ratio > 0.18 && t.state === 'up') {
+      // weaker contact still gets hands on him: he clings on (legs, waist, a shoulder) and is dragged until the
+      // runner goes down or shakes him. A weak grip slips sooner.
+      this.startGrab(t, c, n, style, k);
+      if (t.grab === c) t.grabT = ratio < 0.3 ? 1.3 : 0.6;
+      c.vel.multiplyScalar(legs ? 0.8 : 0.88);
     } else if (ratio > 0.3) {
       // he gets an arm on him but the runner stays up: a stumble, then he's gone
       t.absorb(1.2 + (1 - Math.min(1, ratio)) * 1.8, n.clone().negate(), { braced: false });
@@ -3723,7 +3746,9 @@ class World {
       const push = (0.5 + 0.5 * c.str) * (0.6 + 0.4 * clamp(c.balance, 0, 1));
       B.v = clamp(B.v + (1.6 * push - 2.4 * stop + 1.4 * lead) * dt, 0, 6.5);
       if (c.desired.lengthSq() > 0.25 && !B.truck) { const dd = _w.b.copy(c.desired).setY(0).normalize(); B.dir.lerp(dd, Math.min(1, 0.8 * dt)).normalize(); }
-      B.drive.copy(B.dir).multiplyScalar(Math.max(0.35 * (1 + lead), B.v));
+      // tacklers winning it don't just hang on: they drive their legs and push him back the way they came
+      const back = clamp(-lead * 2.2, 0, 1) * clamp((B.t - 0.25) / 0.4, 0, 1) * (1.4 + 0.5 * B.ts.length);
+      B.drive.copy(B.dir).multiplyScalar(Math.max(0.35 * (1 + lead), B.v) * (1 - Math.min(1, back / 2))).addScaledVector(B.n, back);
       if (B.mR >= 1 || B.mT >= 1 || B.t >= B.dur) this.endBattle(B, B.mR - B.mT + randn() * 0.04 > 0 ? 'runner' : 'tackler');
     }
   }
@@ -3881,6 +3906,8 @@ class World {
         this.holdAt(t, c, dt);
         t.desired.copy(c.vel);
         c.contact = 0.25;
+        // wrapped up and driving: low, chest into him, legs churning
+        { const G = t.fx; G.crouch = Math.max(G.crouch, 0.55); G.leanF = Math.max(G.leanF, 0.75); G.cadence = 3.4; G.amp = 1.2; }
         continue;
       }
       if (c.state !== 'up' || t.state !== 'up') {
@@ -3890,6 +3917,7 @@ class World {
       }
       const n = this.holdAt(t, c, dt);
       c.vel.multiplyScalar(1 - Math.min(0.5, 0.35 * dt * t.mass / c.mass));
+      { const G = t.fx; G.crouch = Math.max(G.crouch, t.tackleStyle === 'low' ? 0.7 : 0.4); G.leanF = Math.max(G.leanF, 0.45); }   // hanging on, dragged
       const drain = (0.55 + 0.75 * t.tackleSk * t.str * (t.mass / c.mass)) * (1 + 0.7 * (c.grabbedBy.length - 1)) / Math.max(0.4, c.stab);
       c.balance -= drain * dt;
       c.contact = 0.25;
@@ -3952,9 +3980,9 @@ class World {
     const c = this.carrier();
     let dir = t.fwd(_w.a);
     if (c && c.team !== t.team && hdist(c.pos, t.pos) < 3.2) dir = _w.a.copy(c.pos).addScaledVector(c.vel, 0.2).sub(t.pos).setY(0).normalize();
-    t.vel.addScaledVector(dir, 1.8);
+    t.vel.addScaledVector(dir, t.human ? 2.4 : 1.8);   // fire off at him: strike, wrap, run through
     t.faceDir = dir.clone();
-    if (c && c.team !== t.team && hdist(c.pos, t.pos) < 3.2) this.startAttempt(t, c, 'lunge', 0.55);
+    if (c && c.team !== t.team && hdist(c.pos, t.pos) < 3.2) this.startAttempt(t, c, 'lunge', 0.6);
     // pick the technique now so the lunge already looks like it (low, shoulder, form...)
     if (c && c.team !== t.team) { const nn = _w.b.set(c.pos.x - t.pos.x, 0, c.pos.z - t.pos.z); const l = nn.length(); if (l > 1e-3 && l < 3.2) t.tackleStyle = this.tackleStyle(t, c, nn.divideScalar(l).clone()); }
   }
@@ -4025,6 +4053,17 @@ class World {
     if (!p.hasBall && c && c.team !== p.team && hdist(c.pos, p.pos) < 4) {
       const lead = c.pos.clone().addScaledVector(c.vel, 0.2);
       f.subVectors(lead, p.pos).setY(0).normalize();
+    }
+    // coming at him head-on: go low, flat out at his ankles (arms reaching for the shins), not up at his chest
+    const headOn = !p.hasBall && c && c.team !== p.team && hdist(c.pos, p.pos) < 4 && (c.vel.x * (p.pos.x - c.pos.x) + c.vel.z * (p.pos.z - c.pos.z)) > 0.3 * hdist(c.pos, p.pos);
+    if (headOn) {
+      p.chop = true; p.diving = true; p.mv = null;
+      p.vel.addScaledVector(f, 2.8);
+      this.attempts = this.attempts.filter(A => A.t !== p);
+      this.startAttempt(p, c, 'dive', 1.0);
+      p.fall(f.clone().multiplyScalar(3.4).add(new V3(0, 0.45, 0)), 0.78, 'dive');
+      Bus.emit('dive', { p, chop: true, headOn: true });
+      return;
     }
     p.vel.addScaledVector(f, 2.4);
     p.diving = !p.hasBall;
@@ -4426,21 +4465,21 @@ class World {
    ============================================================================================= */
 const TD_MOVES = {
   //          duration, how far the pair travels and in which frame, carrier body language
-  slam:     { dur: 0.42, kind: 'slam' },
-  chop:     { dur: 0.16, kind: 'chop' },
-  legwrap:  { dur: 0.6, kind: 'legwrap' },
-  wrapdrag: { dur: 0.6, kind: 'wrapdrag' },
-  yank:     { dur: 0.34, kind: 'yank' },
-  lift:     { dur: 0.6, kind: 'lift' },
-  drive:    { dur: 0.7, kind: 'drive' },
+  slam:     { dur: 0.7, kind: 'slam' },
+  chop:     { dur: 0.45, kind: 'chop' },
+  legwrap:  { dur: 0.9, kind: 'legwrap' },
+  wrapdrag: { dur: 0.95, kind: 'wrapdrag' },
+  yank:     { dur: 0.6, kind: 'yank' },
+  lift:     { dur: 0.9, kind: 'lift' },
+  drive:    { dur: 1.1, kind: 'drive' },
   // Park only: the bigger, more playful set (see pickPark)
-  scoop:    { dur: 0.5, kind: 'scoop', park: 1 },      // low wrap round the thighs, the runner's legs swept up, he goes down on his back
-  suplex:   { dur: 0.95, kind: 'suplex', park: 1 },    // RARE: up on the hip, an arc back, a controlled landing on the runner's side
-  spindown: { dur: 0.6, kind: 'spindown', park: 1 },   // grabbed and whipped round, then dropped
-  onearm:   { dur: 0.42, kind: 'onearm', park: 1 },    // one hand on the jersey of a man pulling away, dragged until he goes
-  hitstick: { dur: 0.2, kind: 'hitstick', park: 1 },   // a running hit through the chest: stood up and knocked back
-  collision:{ dur: 0.26, kind: 'collision', park: 1 }, // two men at full speed head-on: both stopped dead, both go down
-  sidedrive:{ dur: 0.5, kind: 'sidedrive', park: 1 },  // hit from the side and carried sideways off his line
+  scoop:    { dur: 0.8, kind: 'scoop', park: 1 },      // low wrap round the thighs, the runner's legs swept up, he goes down on his back
+  suplex:   { dur: 1.2, kind: 'suplex', park: 1 },    // RARE: up on the hip, an arc back, a controlled landing on the runner's side
+  spindown: { dur: 0.85, kind: 'spindown', park: 1 },   // grabbed and whipped round, then dropped
+  onearm:   { dur: 0.7, kind: 'onearm', park: 1 },    // one hand on the jersey of a man pulling away, dragged until he goes
+  hitstick: { dur: 0.4, kind: 'hitstick', park: 1 },   // a running hit through the chest: stood up and knocked back
+  collision:{ dur: 0.45, kind: 'collision', park: 1 }, // two men at full speed head-on: both stopped dead, both go down
+  sidedrive:{ dur: 0.85, kind: 'sidedrive', park: 1 },  // hit from the side and carried sideways off his line
 };
 Object.assign(World.prototype, {
   /* which takedown fits this contact */
@@ -4513,11 +4552,14 @@ Object.assign(World.prototype, {
         add('spindown', cSpd > 3 ? 0.6 * (special || 0.5) : 0);
       }
       add('wrapdrag', cSpd > 3.5 && !behind ? 0.5 : 0);
+      // a tackler who gets square to him wraps up and DRIVES him: legs churning, the runner carried back
+      if (head) add('drive', 1.6 + (t.human ? 1 : 0) + Math.max(0, strK - 1));
+      if (side) add('sidedrive', 1.0 + (t.human ? 0.6 : 0));
       // the suplex: a clean, dominant wrap of a man who isn't running away from it. Rare on purpose.
       if (!behind && ratio > 2.6 && strK > 0.95 && cSpd < 6.5 && special) add('suplex', (0.22 + 0.3 * hot) * special * clamp(ratio - 2.4, 0.3, 1.2));
     }
     if (opt.drag) { W.wrapdrag = (W.wrapdrag || 0) + 3; W.onearm = (W.onearm || 0) + 1; delete W.lift; delete W.suplex; delete W.collision; delete W.hitstick; }
-    if (opt.finish) { delete W.chop; delete W.collision; delete W.hitstick; W.slam = (W.slam || 0) + 0.5; W.drive = (W.drive || 0) + 0.5; W.spindown = (W.spindown || 0) + 0.3 * (special || 0.3); }
+    if (opt.finish) { delete W.chop; delete W.collision; delete W.hitstick; W.slam = (W.slam || 0) + 0.5; W.drive = (W.drive || 0) + (opt.drag ? 0.5 : 2.2); W.spindown = (W.spindown || 0) + 0.3 * (special || 0.3); }
     // no repeats: the move he just saw is less likely again
     if (this.parkLastTD && W[this.parkLastTD]) W[this.parkLastTD] *= 0.35;
     let tot = 0; for (const k in W) tot += W[k];
@@ -4621,7 +4663,7 @@ Object.assign(World.prototype, {
         t.desired.copy(c.vel);
         const G = t.fx;
         if (TD.move === 'chop' || TD.move === 'legwrap') { G.crouch = TD.move === 'legwrap' ? 0.85 : 0.7; G.leanF = 0.6; G.knee = 1; }
-        else if (TD.move === 'drive') { G.crouch = 0.45; G.leanF = 0.5; G.cadence = 3.2; G.amp = 1.1; }
+        else if (TD.move === 'drive') { G.crouch = 0.55; G.leanF = 0.75; G.cadence = 3.4; G.amp = 1.2; }
         else if (TD.move === 'lift') { G.crouch = 0.45 - 0.35 * k; G.leanF = 0.2 - 0.3 * k; }
         else if (TD.move === 'slam') { G.crouch = 0.3; G.leanF = 0.2 + 0.4 * k; G.twist = TD.side * 0.6 * k; }
         else if (TD.move === 'scoop') { G.crouch = 0.85 - 0.4 * k; G.leanF = 0.55 - 0.2 * k; }   // low under him, then rising through the lift
@@ -4630,8 +4672,8 @@ Object.assign(World.prototype, {
         else if (TD.move === 'onearm') { G.crouch = 0.25; G.leanF = -0.15 - 0.2 * k; G.amp = 1.1; G.cadence = 3; }   // leaning back on the handful of jersey
         else if (TD.move === 'hitstick') { G.crouch = 0.4; G.leanF = 0.55; G.amp = 1.2; G.cadence = 3.2; }   // running through him
         else if (TD.move === 'collision') { G.crouch = 0.2; G.leanF = k < 0.35 ? -0.2 : -0.3 * k; G.amp = 0.4; }
-        else if (TD.move === 'sidedrive') { G.crouch = 0.45; G.leanF = 0.5; G.cadence = 3.4; G.amp = 1.1; }
-        else { G.crouch = 0.35; G.leanF = 0.4; }
+        else if (TD.move === 'sidedrive') { G.crouch = 0.55; G.leanF = 0.7; G.cadence = 3.4; G.amp = 1.2; }
+        else { G.crouch = 0.45; G.leanF = 0.55; }
       }
       if (TD.T >= TD.dur) this.endTakedown(TD, 'down');
     }
@@ -6054,6 +6096,8 @@ const AI = {
   },
   interceptPoint(p, q, delay, out) {
     const qp = q.perceived(delay, _a.p, _a.v);
+    // what he saw is a beat old: carry it forward to where the runner is NOW before working out the angle
+    qp.addScaledVector(_a.v, delay * 0.85);
     const dx = qp.x - p.pos.x, dz = qp.z - p.pos.z;
     const vx = _a.v.x, vz = _a.v.z, sp = Math.max(4, p.vmax * 0.98);
     const a = vx * vx + vz * vz - sp * sp, bq = 2 * (dx * vx + dz * vz), c = dx * dx + dz * dz;
@@ -6701,9 +6745,14 @@ const AI = {
         t.x += c.vel.x / cs * 1.5; t.z += c.vel.z / cs * 0.5;
       }
     }
+    // a good angle: aim at the intercept but stay a step on the inside of it (between him and the end zone he's
+    // running at), so a cut back doesn't leave him running past behind the tackler
+    if (c.hasBall && dC > 2.4 && c.speed > 2) { const cs = c.speed, k = clamp((dC - 2.4) / 8, 0, 1) * 0.9; t.x -= c.vel.x / cs * k; t.z -= c.vel.z / cs * k; }
     // in the last couple of metres stop cutting him off and go for his body: a tackle needs contact
     if (c.hasBall && dC < 2.4) t.copy(c.pos).addScaledVector(c.vel, clamp(dC / 9, 0.06, 0.2));
-    AI.seek(p, t, 1, 0.2);
+    // close under control: a man in space with room to cut gets a defender who breaks down instead of flying by
+    const lat = c.hasBall ? Math.abs(c.vel.x * (p.pos.z - c.pos.z) - c.vel.z * (p.pos.x - c.pos.x)) / Math.max(0.5, dC) : 0;
+    AI.seek(p, t, c.hasBall && dC > 1.6 && dC < 4.5 && lat > 2.5 ? 0.88 : 1, 0.2);
     if (!soft && dC >= 2.4) AI.separate(p, w, 1.3, 1.5);
     const d = hdist(p.pos, c.pos);
     if (!c.hasBall) return;
@@ -6711,7 +6760,7 @@ const AI = {
     p.wantsTackle = d < 1.7;
     const fut = hdist(_a.b.copy(c.pos).addScaledVector(c.vel, 0.22), _a.d.copy(p.pos).addScaledVector(p.vel, 0.22));
     // now and then a linebacker or safety coming in fast and square lowers the shoulder instead of wrapping up
-    if (!(p.cool.hit > 0) && closing > 4 && d < 2.6 && d > 1.1 && (p.role === 'LB' || p.role === 'S' || p.role === 'CB') && chance((p.persona === 'hitter' ? 0.05 : p.persona === 'wrap' ? 0.002 : 0.012) * play.diffFor(p).skill) && p.hitStick(w)) return;
+    if (!(p.cool.hit > 0) && closing > 4 && d < 2.6 && d > 1.1 && (p.role === 'LB' || p.role === 'S' || p.role === 'CB') && chance((p.persona === 'hitter' ? 0.02 : p.persona === 'wrap' ? 0.001 : 0.005) * play.diffFor(p).skill) && p.hitStick(w)) return;
     // only lunge when the lunge can actually get there: close, or closing fast enough that he'll be in reach
     if (p.cool.tackle <= 0 && (d < 1.3 || (fut < (p.persona === 'wrap' ? 0.85 : 1.05) && closing > 0.3) || (d < (p.persona === 'hitter' ? 2.1 : p.persona === 'wrap' ? 1.5 : 1.8) && closing > 2.5)) && chance(0.35 * play.diffFor(p).skill)) w.tackleLunge(p);   // a hitter launches from further out, a sure tackler gets closer first
     else if (d > 1.5 && d < 2.6 && p.cool.tackle <= 0) {
