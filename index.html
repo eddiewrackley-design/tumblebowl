@@ -3497,6 +3497,9 @@ class World {
     if (squared > 0.8 && facing < -0.35) return 'form';
     return 'wrap';
   }
+  /* how much bigger and stronger the tackler is than the man he's tackling: 0 = an even match (or smaller),
+     1 = a big, strong man on a much lighter one. Big men finish more tackles and take them down harder. */
+  sizeEdge(t, c) { return clamp(0.6 * clamp((t.mass - c.mass) / 35, -1, 1) + 0.4 * clamp((t.str - c.str) * 2.5, -1, 1), 0, 1); }
   resolveTackle(t, c, n, closing, k) {
     if (this.deadBall) return;
     if (c.td) { if (!this.joinTakedown(c.td, t)) this.contactShove(t, c, n); return; }   // piling on a takedown
@@ -3525,7 +3528,7 @@ class World {
     const shake = c.mv && (c.mv.kind === 'juke' || c.mv.kind === 'juke2' || c.mv.kind === 'speedcut' || c.mv.kind === 'sidestep') ? 1.6 : 0;
     const mirror = 2.4 + 3.2 * t.agility * (0.6 + 0.4 * t.balance) + (style === 'dive' ? 1.5 : 0) + 1.3 * (t.closeK || 0);   // broken down under control, he can mirror the cut
     const missRisk = (t.persona === 'wrap' ? 0.65 : t.persona === 'hitter' ? 1.25 : 1) * (style === 'arm' ? 1 : style === 'open' ? 0.55 : style === 'low' && facing > 0.35 ? 0.35 : 0.15) * clamp((lat + shake - mirror) / 3, 0, 1) + (style === 'arm' && squared < 0 ? 0.25 : 0);
-    if (missRisk > 0 && chance(missRisk * (t.human && t.is('tackle') ? 0.55 : 1))) {
+    if (missRisk > 0 && chance(missRisk * (t.human && t.is('tackle') ? 0.55 : 1) * (1 - 0.3 * this.sizeEdge(t, c)))) {
       t.cool.tackle = 1.0; t.wantsTackle = false;
       if (t.is('tackle') || style === 'arm') { t.balance = Math.max(0.1, t.balance - 0.35); t.startAct('stumble', 0.5); t.vel.multiplyScalar(0.8); }
       Bus.emit('broken', { p: c, by: t, kind: 'slip' });   // touched him but couldn't hold on
@@ -3547,7 +3550,8 @@ class World {
     const resist = air * c.mass * (2.0 + 0.75 * into) * (0.45 + 0.6 * c.stab * clamp(c.balance, 0.1, 1)) * (legs ? 0.86 + 0.14 * c.str : 0.72 + 0.4 * c.str) * (0.72 + 0.28 * c.stamina) * (c.is('stiff') ? 1.3 : 1) * (1 + 0.14 * (c.braceK || 0)) * sty[1] * rand(0.85, 1.15);
     // a runner already being held is easier to finish: every teammate on him takes away his legs and balance
     const held = c.grabbedBy.length;
-    const ratio = power / resist * (1 + 0.45 * held) / (starOf(c, 'tackleResist') || 1);   // a star back breaks more of them
+    const edge = this.sizeEdge(t, c);
+    const ratio = power / resist * (1 + 0.45 * held) * (1 + 0.35 * edge) / (starOf(c, 'tackleResist') || 1);   // a star back breaks more of them; a big strong tackler finishes more
     // momentum exchange: tackle contact is inelastic (no rebound)
     const ims = 1 / t.mass + 1 / c.mass;
     const vrel = (c.vel.x - t.vel.x) * n.x + (c.vel.z - t.vel.z) * n.z;
@@ -3570,7 +3574,7 @@ class World {
       const exposed = facing > -0.6 || c.balance < 0.5 || c.is('catch') || c.is('reach') || (c.mv && c.mv.kind !== 'sidestep');
       const run = tin - (t.is('tackle') && t.act.t < 0.3 ? 1.8 : 0);   // his running speed, not the last-step lunge
       const big = (style === 'shoulder' || style === 'form') && run >= 5.6 && squared > 0.7 && c.y <= 0.05
-        && (exposed ? t.mass * run >= 620 && ratio >= 2.5 : t.mass * run >= 850 && ratio >= 3.4);
+        && (exposed ? t.mass * run >= 620 - 120 * edge && ratio >= 2.5 - 0.6 * edge : t.mass * run >= 850 - 180 * edge && ratio >= 3.4 - 0.9 * edge);
       if (big) this.fumbleCheck(c, dv + 1.5, t, { braced: false, blind: facing > 0.35 });
       // helmet to helmet: the tackler leads with his head up and the two heads meet. The harder and squarer
       // the hit, the likelier the runner's helmet is torn off.
@@ -4563,7 +4567,7 @@ Object.assign(World.prototype, {
       if (head) {
         add('slam', ratio > 2.2 ? 1.2 + (strK - 1) * 1.5 : 0.3);
         add('drive', tin > 2 && cSpd < 5 ? 1.2 : 0.3);
-        add('lift', t.mass > c.mass * 1.1 && ratio > 2.5 && cSpd < 6 ? 0.9 : 0);
+        add('lift', t.mass > c.mass * 1.1 && ratio > 2.5 - 0.5 * this.sizeEdge(t, c) && cSpd < 6 ? 0.9 : 0);
         // a full-speed collision: both men running hard at each other
         add('hitstick', tin > 5 && t.fwd(_w.b).dot(n) > 0.7 && ratio > 2.3 ? (1.1 + hot) * (special || 0.4) : 0);
         add('scoop', ratio > 2 && tin < 5 ? 0.6 : 0);
@@ -4592,6 +4596,9 @@ Object.assign(World.prototype, {
     if (opt.drag) { W.wrapdrag = (W.wrapdrag || 0) + 3; W.onearm = (W.onearm || 0) + 1; delete W.lift; delete W.suplex; delete W.collision; delete W.hitstick; }
     if (opt.finish) { delete W.chop; delete W.collision; delete W.hitstick; W.slam = (W.slam || 0) + 0.5; W.drive = (W.drive || 0) + (opt.drag ? 0.5 : 2.2); W.spindown = (W.spindown || 0) + 0.3 * (special || 0.3); }
     // no repeats: the move he just saw is less likely again
+    // a big, strong tackler on a smaller man: more scoops, slams, lifts and big hits
+    { const e = this.sizeEdge(t, c); if (e > 0) { for (const m of ['slam', 'scoop', 'lift', 'hitstick', 'collision', 'suplex']) if (W[m]) W[m] *= 1 + 2.2 * e;
+      if (!W.slam && ratio > 1.9) W.slam = 1.2 * e; if ((style === 'low' || style === 'dive' || !behind) && ratio > 1.9) W.scoop = (W.scoop || 0) + 1.1 * e; if (W.scoop) W.scoop *= 1 + 1.5 * e; } }
     if (this.parkLastTD && W[this.parkLastTD]) W[this.parkLastTD] *= 0.35;
     let tot = 0; for (const k in W) tot += W[k];
     let pick = 'wrapdrag';
