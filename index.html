@@ -33366,6 +33366,8 @@ const Game = {
       if (d.dv > 3.5) Sfx.cheer(0.06 + d.dv * 0.015);
       if (d.dv > 6 && !this.attract) Sfx.pop(0.25 + Math.min(0.3, (d.dv - 6) * 0.05));   // the "ooh" on a big collision   // a thud: the whole stadium reacts a little, nobody's side yet
     });
+    // an interception: the one slow-motion beat left in the game, as the defender comes down with it
+    Bus.on('catch', (d) => { if (!this.attract && d && d.how === 'int' && !(typeof Sandbox !== 'undefined' && Sandbox.active)) this.slow(0.3, 0.85); });
     Bus.on('tackle', (d) => {
       if (this.attract) return;
       if (d.kind === 'big') { Sfx.react(d.by && d.by.team, 0.5); if (this.match && this.match.play && this.match.play.live) Bus.emit('banner', { text: 'BIG HIT', sub: `#${d.by.num} ${d.by.name}`, kind: 'good' }); }
