@@ -3524,7 +3524,7 @@ class World {
       const mv = lowT ? (chance(0.5 + 0.4 * e + (J ? 0.2 : 0)) ? 'scoop' : 'legwrap') : (e > 0.5 || J) && chance(J ? 0.6 + 0.2 * e : 0.6) ? (chance(J ? 0.45 : 0) ? 'scoop' : chance(0.65) ? 'slam' : 'lift') : chance(0.7) ? 'drive' : 'sidedrive';
       this.startTakedown(t, c, n, mv, { kind: big ? 'big' : 'pop', style: 'pop', extra: { ratio: r } });
       if (c.td) {
-        c.td.dur *= clamp(0.85 - 0.12 * rr, 0.4, 0.7);   // standing there, he goes down quick
+        c.td.dur = c.td.jd ? clamp(0.85 - 0.06 * rr, 0.6, 0.8) : c.td.dur * clamp(0.85 - 0.12 * rr, 0.4, 0.7);   // standing there, he goes down quick (a J drives him back first)
         const pos = c.pos.clone().lerp(t.pos, 0.45); pos.y = 1.0;
         this.impacts.push({ pos, dv: 1.2 + tin * 0.5, j: t.mass * tin, t: 0, tackle: r, style: 'pop' });
         Bus.emit('hit', { a: t, b: c, dv: 1.2 + tin * 0.5, j: t.mass * tin, pos, tackle: true, style: 'pop' });
@@ -4679,7 +4679,14 @@ Object.assign(World.prototype, {
     const f = c.fwd(_w.a).clone();
     const side = Math.sign(c.vel.x * n.z - c.vel.z * n.x) || (Math.random() < 0.5 ? 1 : -1);
     const TD = { c, ts: [t], move, T: 0, dur: M.dur * rand(0.9, 1.15), n: n.clone(), f, side, x0: c.pos.clone(),
-      v0: Math.hypot(c.vel.x, c.vel.z), info, done: false, t0: t, vr: Math.random() };   // vr: this one's variation (how far he leans, which way he spins)
+      v0: Math.hypot(c.vel.x, c.vel.z), info, done: false, t0: t, vr: Math.random() };
+    // your J tackle: wrap him up and DRIVE him back. The pile goes the way you hit him, legs churning, faster the
+    // bigger, stronger and quicker you are, then he goes down (on his back for a scoop, slammed for a slam)
+    if (t.human && (t.is('tackle') || info.style === 'pop')) {
+      const tin = Math.max(0, t.vel.x * n.x + t.vel.z * n.z), e = this.sizeEdge ? this.sizeEdge(t, c) : 0;
+      TD.jd = clamp(1.9 + 0.3 * tin + 1.4 * e, 2, 5);
+      TD.dur = Math.max(TD.dur, 0.6);
+    }   // vr: this one's variation (how far he leans, which way he spins)
     // where the tackler holds on: legs for the low moves (in front or behind), the waist otherwise
     const a = this.holdSlot(t, c, c.grabbedBy);
     t.holdAng = a === null ? Math.atan2(0, -1) : a;
@@ -4732,6 +4739,7 @@ Object.assign(World.prototype, {
         case 'sidedrive': v = 2.6 * (1 - 0.6 * k) + TD.v0 * 0.25 * (1 - k); dir = _w.d.copy(n).lerp(f, 0.25).normalize(); break;   // carried sideways off his line
       }
       c.vel.x = dir.x * v; c.vel.z = dir.z * v;
+      if (TD.jd) { const b = TD.jd * (1 - 0.5 * k); c.vel.x = c.vel.x * 0.3 + n.x * b; c.vel.z = c.vel.z * 0.3 + n.z * b; c.faceDir = _w.e.copy(n).multiplyScalar(-1).clone(); }
       c.desired.copy(c.vel); c.sprint = false; c.contact = 0.3;
       // the carrier fights it: struggling arms, the body going the way the move takes him
       const F = c.fx;
@@ -4776,6 +4784,7 @@ Object.assign(World.prototype, {
         else if (TD.move === 'collision') { G.crouch = 0.2; G.leanF = k < 0.35 ? -0.2 : -0.3 * k; G.amp = 0.4; }
         else if (TD.move === 'sidedrive') { G.crouch = 0.55; G.leanF = 0.7; G.cadence = 3.4; G.amp = 1.2; }
         else { G.crouch = 0.45; G.leanF = 0.55; }
+        if (TD.jd && TD.move !== 'suplex') { G.crouch = Math.max(G.crouch, 0.5); G.leanF = Math.max(G.leanF, 0.7); G.cadence = 3.6; G.amp = 1.25; }
       }
       if (TD.T >= TD.dur) this.endTakedown(TD, 'down');
     }
@@ -4786,7 +4795,7 @@ Object.assign(World.prototype, {
     if (TD.done) return;
     TD.done = true;
     const c = TD.c, ts = TD.ts.slice(), t0 = TD.t0, f = TD.f, n = TD.n, s = TD.side;
-    c.td = null; if (TD.move === 'spindown') c.faceDir = null;
+    c.td = null; if (TD.move === 'spindown' || TD.jd) c.faceDir = null;
     for (const p of this.players) if (p.td === TD) { p.td = null; if (p.grab === c) p.grab = null; p.holdAng = undefined; if (p.is('wrap')) p.act = null; }
     c.grabbedBy = c.grabbedBy.filter(g => !ts.includes(g));
     if (how !== 'down' || c.state !== 'up') { if (c.y > 0) c.vy = 0; return; }
