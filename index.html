@@ -7693,8 +7693,14 @@ class Match {
   tossChoose(team, receive) {
     const T = this.toss; if (!T || T.stage !== 'choose' || team !== T.winner) return;
     T.choice = receive ? 'receive' : 'kick'; T.stage = 'done'; T.t = 0;
-    this.openingReceiver = receive ? team : 1 - team;
     const nm = this.teams[team].def.name;
+    if (this.ot) {
+      this.ot.firstOff = receive ? team : 1 - team;
+      this.banner(receive ? 'OFFENSE FIRST' : 'DEFENSE FIRST', receive ? `${nm} take the ball first` : `${nm} will play defense first`, 'info');
+      Bus.emit('tossChoice', { team, choice: T.choice, ot: true });
+      return;
+    }
+    this.openingReceiver = receive ? team : 1 - team;
     this.banner(receive ? 'WILL RECEIVE' : 'DEFER TO THE 2ND HALF', receive ? `${nm} take the ball first` : `${nm} kick off · they'll receive after halftime`, 'info');
     Bus.emit('tossChoice', { team, choice: T.choice });
   }
@@ -7710,10 +7716,11 @@ class Match {
       if (typeof Sfx !== 'undefined' && Sfx.cheer) Sfx.cheer(0.4);
     }
     else if (T.stage === 'result' && T.t > 1.5) { T.stage = 'choose'; T.t = 0; }
-    else if (T.stage === 'choose' && !this.isHuman(T.winner) && T.t > 1.3) this.tossChoose(T.winner, chance(0.3));   // the CPU usually defers
+    else if (T.stage === 'choose' && !this.isHuman(T.winner) && T.t > 1.3) this.tossChoose(T.winner, chance(this.ot ? 0.15 : 0.3));   // the CPU usually defers (in overtime: defense first, to know what it needs)
     else if (T.stage === 'done' && T.t > 2.2) {
       this.toss.stage = 'over'; const rec = this.openingReceiver;
       this.toss = null;
+      if (this.ot) return this.otPeriod();
       this.banner('KICKOFF', `${this.teams[1 - rec].def.name} kick to open the game`);
       this.startKickoff(1 - rec, 35);
     }
@@ -7771,7 +7778,7 @@ class Match {
     if (this.o.park) return this.parkBook();
     const list = PLAYBOOK.slice();
     if (this.down === 4 && !this.o.practice && !this.twoPointPending) {
-      list.push({ id: 'punt', name: 'Punt', type: 'punt', tip: 'Flip the field.' });
+      if (!this.ot) list.push({ id: 'punt', name: 'Punt', type: 'punt', tip: 'Flip the field.' });
       if (100 - this.spot + 17 <= 62) list.push({ id: 'fg', name: 'Field Goal', type: 'fg', tip: `${100 - this.spot + 17}-yard attempt.` });
     }
     return list;
@@ -7798,7 +7805,13 @@ class Match {
     if (!this.o.practice && !this.o.career && this.pendingRunoff > 0 && tos === 0 && urgent && c > 4 && c < 28 && down < 4 && !(needFG && inFG && c < 9)) return { id: 'spike', name: 'Spike', type: 'spike' };
     // a kick to tie or win (or points before the half) when time is about gone
     if (!this.o.practice && !this.o.career && ((needFG || (late && lead >= 0)) && fgOK && c < 9 || endHalf && c < 7 && fgOK)) return { id: 'fg', name: 'Field Goal', type: 'fg' };
-    if (down === 4 && !this.o.practice && !this.o.career) {
+    if (this.ot && down === 4 && !this.twoPointPending) {
+      // overtime fourth down: no punting. Going first, take the points; going second, kick only if three is enough
+      const second = this.ot.n === 1, need = -lead;
+      const kick = fgOK && (second ? need >= 0 && need <= 3 : togo > 2 || fgDist > 40);
+      if (kick) return { id: 'fg', name: 'Field Goal', type: 'fg' };
+    }
+    else if (down === 4 && !this.o.practice && !this.o.career) {
       // fourth down: kick it, punt it, or go, from the score, the time, the distance and where the ball is
       let go = false;
       if (needTD && c < 420) go = true;                                     // a field goal doesn't save us
@@ -7967,6 +7980,7 @@ class Match {
 
   /* ---------------- kicks ---------------- */
   startKickoff(kickTeam, yard) {
+    if (this.ot && this.otAllowed()) return this.otNext();   // overtime has no kickoffs: the possession is over
     this.twoPointPending = false;
     const w = this.w, recv = 1 - kickTeam;
     const dir = w.dir[kickTeam];
@@ -8213,7 +8227,7 @@ class Match {
       }
       for (const p of w.players) if (p.pendingThrow) QB.update(w, p, dt);
       w.step(dt);
-      if (!this.o.practice && !play.twoPoint && !play.pat && !this.twoMinNow) { const before = this.clock; this.clock = Math.max(0, this.clock - dt); this.twoMinCheck(before); }   // tries are untimed
+      if (!this.o.practice && !this.ot && !play.twoPoint && !play.pat && !this.twoMinNow) { const before = this.clock; this.clock = Math.max(0, this.clock - dt); this.twoMinCheck(before); }   // tries are untimed
       this.processEvents();
       if (play.live) this.watchdog(dt);
       if (play.live && typeof RoutePlay !== 'undefined') RoutePlay.step(w, play, dt);
@@ -8719,6 +8733,7 @@ class Match {
     return this.newBall(play.recv, 40);
   }
   newBall(team, yard, x) {
+    if (this.ot && this.otAllowed() && team !== this.ot.cur) return this.otNext();   // a turnover, a miss or a stop ends the overtime possession
     if (this.o.park && team !== this.poss) { this.newPossession(team, this.o.park.start); return this.toCall(); }
     if (this.o.practice) { this.newPossession(this.o.practice.side === 'off' ? this.o.practice.team : 1 - this.o.practice.team, this.o.practice.yard); return this.toCall(); }
     this.newPossession(team, yard, this.w.ball.pos.z);
@@ -8762,6 +8777,10 @@ class Match {
     this.banner('TOUCHDOWN', `${this.teams[team].def.name} · #${p.num} ${p.name}`, this.isHuman(team) || this.humanTeams.size === 0 ? 'good' : 'bad');
     Bus.emit('score', { team, pts: 6, td: true, p });
     if (this.o.practice) { play.next = () => this.newBall(team, 30); return; }
+    if (this.ot && this.otAllowed()) {
+      if (team !== this.ot.cur) { this.banner('DEFENSIVE TOUCHDOWN', `${this.teams[team].def.name} win it in overtime`, this.isHuman(team) ? 'good' : 'bad'); play.next = () => this.otEnd(); return; }
+      if (this.ot.n === 1 && this.score[team] > this.score[1 - team]) { play.next = () => this.otEnd(); return; }   // walk-off: no try needed
+    }
     if (this.parkOne()) { play.next = () => this.parkTry(team); return; }
     if (this.o.park) { this.score[team] += 1; Bus.emit('score', { team, pts: 1, park: true }); play.next = () => this.parkAfterScore(team); return; }
     play.next = () => this.patChoice(team);
@@ -8773,6 +8792,7 @@ class Match {
       return this.afterScore(team);
     }
     this.twoPointPending = false;
+    if (this.ot && this.ot.period >= 2) { this.banner('MUST GO FOR TWO', 'From the second overtime on, every touchdown is followed by a two-point try', 'info'); return this.startTwoPoint(team); }
     if (this.isHuman(team)) { this.setPhase('patchoice'); return; }
     if (this.cpuGoesForTwo(team)) { this.banner('GOING FOR TWO', this.teams[team].def.name, 'info'); return this.startTwoPoint(team); }
     this.spot = 85; this.setupFG(true);
@@ -8903,10 +8923,10 @@ class Match {
   afterPlay() {
     const play = this.play;
     if (!play || !play.next) return;
-    if (!this.o.practice) this.cpuTimeouts(play);   // (while the next play is still pending, so a timeout can stop the clock)
+    if (!this.o.practice && !this.ot) this.cpuTimeouts(play);   // (while the next play is still pending, so a timeout can stop the clock)
     const next = play.next; play.next = null;
-    // clock runoff between plays
-    if (!this.o.practice) {
+    // clock runoff between plays (none in overtime)
+    if (!this.o.practice && !this.ot) {
       const runs = !play.stopClock && !play.twoPoint && !play.pat;
       if (runs) {
         let off = this.clock > 120 || this.quarter % 2 === 1 ? 24 : 12;
@@ -9009,6 +9029,7 @@ class Match {
       this.banner('NEXT SCORE WINS', 'Tied at the end of regulation', 'info');
       return false;
     }
+    if (this.quarter === 4 && this.otAllowed() && this.score[0] === this.score[1]) return this.startOT();
     if (this.quarter >= 4) {
       this.setPhase('over');
       const [a, b] = this.score;
@@ -9032,6 +9053,62 @@ class Match {
     this.banner(`END OF Q${this.quarter - 1}`, '', 'info');
     Bus.emit('quarterEnd', { q: this.quarter - 1 });   // the broadcast's quarter-break package (qbreak.js)
     return false;
+  }
+  /* ---------------- overtime: college rules ----------------
+     Tied after four quarters: "END OF REGULATION", then a new coin toss at midfield. The winner picks offense or
+     defense first. Each overtime both teams get one possession from the opponent's 25: no game clock, no kickoffs,
+     no punts, one timeout each. A possession ends with a score, a turnover, a missed field goal or a stop on
+     downs. From the 2nd overtime a touchdown must be followed by a two-point try; from the 3rd it's a two-point
+     shootout: one snap each from the 3. The team that went first goes second in the next overtime. Leading after
+     both have had the ball wins; the team going second wins as soon as it goes ahead; a defensive touchdown on
+     a turnover ends it. */
+  otAllowed() { return !this.o.practice && !this.o.park && !this.o.career && !(typeof Sandbox !== 'undefined' && Sandbox.active); }
+  startOT() {
+    this.ot = { period: 0, cur: null, n: 0, firstOff: null };
+    this.clock = 0; this.pendingRunoff = 0;
+    const [a, b] = this.score;
+    this.banner('END OF REGULATION', `${this.teams[0].def.abbr} ${a} – ${b} ${this.teams[1].def.abbr} · we're going to overtime`, 'info');
+    Bus.emit('regulationEnd', { score: this.score.slice() });
+    if (typeof Sfx !== 'undefined' && Sfx.cheer) Sfx.cheer(0.6);
+    this.setPhase('dead');
+    this.play = { live: false, stopClock: true, holdDead: 3.6, highlights: [], next: () => { this.quarter = 5; this.startToss(); } };
+    return true;
+  }
+  otLabel(p) { return p === 1 ? 'OVERTIME' : `${p === 2 ? 'DOUBLE' : p === 3 ? 'TRIPLE' : p + 'X'} OVERTIME`; }
+  otPeriod() {
+    const O = this.ot; O.period++; O.n = 0;
+    this.quarter = 4 + O.period; this.clock = 0; this.timeouts = [1, 1];
+    const first = O.period % 2 === 1 ? O.firstOff : 1 - O.firstOff;
+    const rule = O.period >= 3 ? 'Two-point shootout · one snap each from the 3' : O.period === 2 ? 'Ball at the 25 · touchdowns must go for two' : 'Ball at the 25 · one possession each';
+    this.banner(this.otLabel(O.period), rule, 'info');
+    this.otPossession(first);
+  }
+  otPossession(team) {
+    const O = this.ot; O.cur = team;
+    if (O.period >= 3) {
+      this.newPossession(team, 97, 0); this.down = 1; this.togo = 3; this.twoPointPending = true;
+      if (O.n === 1) this.banner('TWO-POINT ATTEMPT', `${this.teams[team].def.name} answer`, 'info');
+    } else {
+      this.newPossession(team, 75, 0);
+      if (O.n === 1) this.banner(`${this.teams[team].def.abbr} BALL`, `${this.teams[team].def.name} from the 25`, 'info');
+    }
+    this.toCall();
+  }
+  /* a possession is over (a score, a turnover, a miss, a stop): the other team's turn, the next overtime, or the end */
+  otNext() {
+    const O = this.ot;
+    O.n++;
+    if (O.n === 1) return this.otPossession(1 - O.cur);
+    if (this.score[0] !== this.score[1]) return this.otEnd();
+    this.banner(`END OF ${this.otLabel(O.period).replace(' OVERTIME', ' OT').replace('OVERTIME', 'OT')}`, 'Still tied', 'info');
+    this.setPhase('dead');
+    this.play = { live: false, stopClock: true, holdDead: 2.4, highlights: [], next: () => this.otPeriod() };
+  }
+  otEnd() {
+    this.setPhase('over');
+    const [a, b] = this.score, w = a > b ? 0 : 1;
+    this.banner('FINAL / ' + (this.ot.period > 1 ? this.ot.period + 'OT' : 'OT'), `${this.teams[w].def.name} win it · ${this.teams[0].def.abbr} ${a} – ${b} ${this.teams[1].def.abbr}`, this.isHuman(w) ? 'good' : this.humanTeams.size ? 'bad' : 'info');
+    Bus.emit('gameOver', { score: this.score.slice(), ot: this.ot.period });
   }
   /* career: the unit you don't play gets a quick simulated drive */
   simDrive(backup) {
@@ -34313,12 +34390,15 @@ const UI = {
     if (T.stage === 'call') { sub = you(T.caller) ? `${who(T.caller)} call it in the air` : `${nm(T.caller)} are calling it…`; if (you(T.caller)) opts = [['Heads', () => m.tossCall(T.caller, true)], ['Tails', () => m.tossCall(T.caller, false)]]; }
     else if (T.stage === 'flip') sub = `${who(T.caller)} called ${T.call}…`;
     else if (T.stage === 'result') sub = `It's ${T.result}! ${nm(T.winner)} win the toss.`;
+    else if (T.stage === 'choose' && m.ot) { sub = you(T.winner) ? `${who(T.winner)} won the overtime toss: offense first, or defense first and know what you need?` : `${nm(T.winner)} are deciding…`; if (you(T.winner)) opts = [['Offense first', () => m.tossChoose(T.winner, true)], ['Defense first', () => m.tossChoose(T.winner, false)]]; }
+    else if (T.stage === 'done' && m.ot) sub = T.choice === 'receive' ? `${nm(T.winner)} take the ball first in overtime.` : `${nm(T.winner)} play defense first: ${nm(1 - T.winner)} have the ball first.`;
     else if (T.stage === 'choose') { sub = you(T.winner) ? `${who(T.winner)} won the toss: receive, or kick off and get the ball after halftime?` : `${nm(T.winner)} are deciding…`; if (you(T.winner)) opts = [['Receive', () => m.tossChoose(T.winner, true)], ['Kick off (defer)', () => m.tossChoose(T.winner, false)]]; }
     else if (T.stage === 'done') sub = T.choice === 'receive' ? `${nm(T.winner)} will receive the opening kickoff.` : `${nm(T.winner)} defer: ${nm(1 - T.winner)} receive first, ${nm(T.winner)} get the ball to start the 2nd half.`;
     key += '|' + sub;
     if (el._k === key) return;
     el._k = key; el.hidden = false;
     $('tossSub').textContent = sub;
+    { const hb = el.querySelector('.what b'); if (hb) hb.textContent = m.ot ? 'Overtime coin toss' : 'Coin toss'; }
     const box = $('tossOpts'); box.innerHTML = '';
     const turn = T.stage === 'call' ? T.caller : T.winner, th = G.humans.find(h => h.team === turn), pre = '';   // 1/2 on either keyboard side work for whoever is deciding
     if (opts) opts.forEach(([label, f], i) => { const b = document.createElement('button'); b.innerHTML = TouchPad.on ? label : `<kbd>${pre}${i + 1}</kbd> ${label}`; /* on a touchscreen: just tap it */ b.onclick = () => { Sfx.click && Sfx.click(); f(); }; box.appendChild(b); });
