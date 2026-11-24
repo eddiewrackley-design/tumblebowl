@@ -3520,7 +3520,8 @@ class World {
     // man, a drive otherwise), not a body-check where the tackler runs past
     if (this.startTakedown && t.state === 'up' && !c.td) {
       const e = this.sizeEdge(t, c), lowT = t.tackleStyle === 'low' || t.diving;
-      const mv = lowT ? (chance(0.5 + 0.4 * e) ? 'scoop' : 'legwrap') : e > 0.5 && chance(0.6) ? (chance(0.6) ? 'slam' : 'lift') : chance(0.7) ? 'drive' : 'sidedrive';
+      const J = !!t.human;   // your J: scoops and slams come up more
+      const mv = lowT ? (chance(0.5 + 0.4 * e + (J ? 0.2 : 0)) ? 'scoop' : 'legwrap') : (e > 0.5 || J) && chance(J ? 0.6 + 0.2 * e : 0.6) ? (chance(J ? 0.45 : 0) ? 'scoop' : chance(0.65) ? 'slam' : 'lift') : chance(0.7) ? 'drive' : 'sidedrive';
       this.startTakedown(t, c, n, mv, { kind: big ? 'big' : 'pop', style: 'pop', extra: { ratio: r } });
       if (c.td) {
         c.td.dur *= clamp(0.85 - 0.12 * rr, 0.4, 0.7);   // standing there, he goes down quick
@@ -4653,6 +4654,12 @@ Object.assign(World.prototype, {
     if (opt.drag) { W.wrapdrag = (W.wrapdrag || 0) + 3; W.onearm = (W.onearm || 0) + 1; delete W.lift; delete W.suplex; delete W.collision; delete W.hitstick; }
     if (opt.finish) { delete W.chop; delete W.collision; delete W.hitstick; W.slam = (W.slam || 0) + 0.5; W.drive = (W.drive || 0) + (opt.drag ? 0.5 : 2.2); W.spindown = (W.spindown || 0) + 0.3 * (special || 0.3); }
     // no repeats: the move he just saw is less likely again
+    // your J tackle: you went at him to wrap him up, so the scoop and the slam come up a lot more
+    if (t.human && (t.is('tackle') || t.is('wrap')) && !opt.drag) {
+      if (!behind) W.scoop = (W.scoop || 0) + 1.6 + (style === 'low' || style === 'dive' || t.diving ? 1 : 0);
+      if (style !== 'low' && style !== 'dive' && !t.diving) W.slam = (W.slam || 0) + (behind ? 0.6 : 1.6);
+      if (W.scoop) W.scoop *= 2; if (W.slam) W.slam *= 1.8; if (W.collision) W.collision *= 0.6;
+    }
     // a big, strong tackler on a smaller man: more scoops, slams, lifts and big hits
     { const e = this.sizeEdge(t, c); if (e > 0) { for (const m of ['slam', 'scoop', 'lift', 'hitstick', 'collision', 'suplex']) if (W[m]) W[m] *= 1 + 2.2 * e;
       if (!W.slam && ratio > 1.9) W.slam = 1.2 * e; if ((style === 'low' || style === 'dive' || !behind) && ratio > 1.9) W.scoop = (W.scoop || 0) + 1.1 * e; if (W.scoop) W.scoop *= 1 + 1.5 * e; } }
