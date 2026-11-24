@@ -1653,6 +1653,7 @@ const smooth = (t) => t * t * (3 - 2 * t);
 const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
 const randn = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
 const chance = (p) => Math.random() < p;
+const pickW = (opts) => { let tot = 0; for (const o of opts) tot += o[1]; let r = Math.random() * tot; for (const o of opts) { r -= o[1]; if (r <= 0) return o[0]; } return opts[opts.length - 1][0]; };   // weighted pick from [[value, weight], ...]
 const wrapAng = (a) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
 const hdist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
@@ -2573,12 +2574,34 @@ class Player {
   endTrip(d) {
     if (this.state !== 'up') return;
     if (d && d.save) { this.balance = Math.max(0.3, this.balance); Bus.emit('broken', { p: this, by: d.by, kind: 'ankle' }); return; }
-    const sp = Math.hypot(this.vel.x, this.vel.z), fw = sp > 0.5 ? new V3(this.vel.x / sp, 0, this.vel.z / sp) : this.fwd(new V3());
+    const f0 = this.fwd(new V3()), sp = Math.hypot(this.vel.x, this.vel.z);
+    // he goes down the way he was running (a bump on the way down can't send him over backward)
+    const fw = sp > 0.5 && (this.vel.x * f0.x + this.vel.z * f0.z) > 0 ? new V3(this.vel.x / sp, 0, this.vel.z / sp) : f0;
+    if ((this.vel.x * fw.x + this.vel.z * fw.z) < 1.5) this.vel.addScaledVector(fw, 1.5 - Math.max(0, this.vel.x * fw.x + this.vel.z * fw.z));
     this.fall(_p.t.copy(this.vel).multiplyScalar(0.95).add(new V3(0, 0.2, 0)), -0.9, 'trip', rand(-0.6, 0.6));
     // his feet are stopped and his body keeps going: the whole body rotates forward about the hips (head down and
     // ahead, heels coming up behind). Run in hard and clipped clean, he goes all the way over: a flip.
     const flip = !!(d && d.flip), W = flip ? rand(7.5, 10) : clamp(1.8 + 0.42 * sp, 2, 5.2), pop = flip ? rand(2.4, 3.4) : 0.4;
-    const pel = this.joints[J.PEL];
+    const pel = this.joints[J.PEL], how = d && d.how;
+    if (how === 'plank' || how === 'side' || how === 'knees') {
+      // plank: stiff, straight forward from the feet, face first into the turf (no heels flying up)
+      // side: his feet go one way and he rolls off the other, landing on his shoulder
+      // knees: the legs buckle, he drops to his knees and then forward onto his hands
+      const r = _p.u.set(-fw.z, 0, fw.x).multiplyScalar(d.side || 1);
+      const footY = Math.min(this.joints[J.LF].y, this.joints[J.RF].y);
+      const Wp = clamp(2.2 + 0.32 * sp, 2.4, 5), Ws = rand(3.2, 4.4);
+      for (let i = 0; i < NJ; i++) {
+        const jt = this.joints[i], h = jt.y - footY, dy = jt.y - pel.y;
+        const df = (jt.x - pel.x) * fw.x + (jt.z - pel.z) * fw.z, dr = (jt.x - pel.x) * r.x + (jt.z - pel.z) * r.z;
+        let vx = 0, vy = 0, vz = 0;
+        if (how === 'plank') { vx = Wp * h * fw.x; vz = Wp * h * fw.z; vy = -Wp * ((jt.x - this.joints[J.LF].x) * fw.x + (jt.z - this.joints[J.LF].z) * fw.z) * 0.6; }
+        else if (how === 'side') { vx = Ws * dy * r.x + 0.5 * W * dy * fw.x; vz = Ws * dy * r.z + 0.5 * W * dy * fw.z; vy = -Ws * dr - 0.5 * W * df; }
+        else { vy = dy < 0 ? -0.2 : -2.6 - 0.5 * dy; vx = (dy > 0 ? 1.6 * dy : -0.4) * fw.x; vz = (dy > 0 ? 1.6 * dy : -0.4) * fw.z; }   // knees: buckle down, chest over
+        this.prev[i].x -= vx * DT; this.prev[i].y -= vy * DT; this.prev[i].z -= vz * DT;
+      }
+      if (d && d.by) { d.by.stats.tkl++; Bus.emit('tackle', { by: d.by, c: this, kind: 'ankle', style: how, dv: 2 }); }
+      return;
+    }
     for (let i = 0; i < NJ; i++) {
       const jt = this.joints[i], dy = jt.y - pel.y, df = (jt.x - pel.x) * fw.x + (jt.z - pel.z) * fw.z;
       // upper body: on forward and down; legs: heels whipped up and back (the clipped feet catch, so they go up more than back)
@@ -3180,7 +3203,10 @@ class World {
     const save = chance(clamp(0.12 + 0.35 * c.agility * c.balance - 0.15 * t.tackleSk, 0.05, 0.45) * (starOf(c, 'tackleResist') ? 1.4 : 1));
     // clipped at speed (a diving chop at the heels especially), the momentum takes him over the top
     const flip = !save && c.speed > 6 && chance(t.chop ? 0.55 : 0.3);
-    c.startAct('trip', flip ? rand(0.1, 0.2) : c.speed > 5 ? rand(0.18, 0.4) : rand(0.28, 0.62), { by: t, save, flip });
+    // how he goes down when his legs are taken: over the top (flip), straight forward like a falling plank, rolled
+    // off to the side, or the usual pitch forward with the heels kicking up
+    const how = flip ? 'flip' : save ? 'save' : pickW([['plank', 1.2], ['side', 1.0], ['pitch', 1.0], ['knees', c.speed < 4 ? 0.9 : 0.25]]);
+    c.startAct('trip', flip ? rand(0.1, 0.2) : c.speed > 5 ? rand(0.18, 0.4) : rand(0.28, 0.62), { by: t, save, flip, how, side: chance(0.5) ? 1 : -1 });
     c.balance = Math.min(c.balance, save ? 0.45 : 0.3);
     c.defTouchT = this.time;
     if (t.state === 'up') t.fall(t.vel.clone().multiplyScalar(0.5).addScaledVector(n, 0.6).add(new V3(0, -0.3, 0)), -0.6, 'tackler', rand(-1, 1));
