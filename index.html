@@ -3210,6 +3210,12 @@ class World {
     c.balance = Math.min(c.balance, save ? 0.45 : 0.3);
     c.defTouchT = this.time;
     if (t.state === 'up') t.fall(t.vel.clone().multiplyScalar(0.5).addScaledVector(n, 0.6).add(new V3(0, -0.3, 0)), -0.6, 'tackler', rand(-1, 1));
+    else if (t.state === 'fallen') {
+      // a diver who got there: his hands are stopped on the legs, so the rest of him settles onto the turf behind them
+      // instead of his legs swinging up over his head
+      for (const j of [J.PEL, J.LHIP, J.RHIP, J.LK, J.RK, J.LF, J.RF]) { const q = t.prev[j], p = t.joints[j]; q.x = lerp(q.x, p.x, 0.65); q.z = lerp(q.z, p.z, 0.65); if (q.y < p.y) q.y = lerp(q.y, p.y, 0.8); }
+      t.diveArms = null;
+    }
     t.chop = false;
     Bus.emit('wrap', { by: t, c, kind: 'ankle', chop: true });
   }
@@ -4143,18 +4149,18 @@ class World {
      full extension at the runner's ankles, leading the feet. Low and horizontal, not the high dive. */
   /* a low, flat dive at the legs: the body pitches forward fast about the hips (head and arms going down and out,
      feet coming up behind) so he's horizontal at shin height by the time he gets there, arms straight out */
-  lowDive(p, f, fwd) {
-    p.fall(f.clone().multiplyScalar(fwd).add(new V3(0, -0.6, 0)), 0.45, 'dive');
+  lowDive(p, f, fwd, o = {}) {
+    p.fall(f.clone().multiplyScalar(fwd).add(new V3(0, o.up != null ? o.up : -0.6, 0)), o.bias != null ? o.bias : 0.45, 'dive');
     // he launches out of a deep crouch: the whole body starts low (shape kept, no velocity added)...
-    const drop = 0.34 * p.H;
+    const drop = (o.drop != null ? o.drop : 0.34) * p.H;
     for (let i = 0; i < NJ; i++) { const jt = p.joints[i], d = Math.min(drop, Math.max(0, jt.y - JRAD[i])); jt.y -= d; p.prev[i].y -= d; }
     // ...and pitches forward about the hips while it drops toward the turf
-    const pel = p.joints[J.PEL], W = 3.6, ax = new V3().crossVectors(UP, f);
+    const pel = p.joints[J.PEL], W = o.W != null ? o.W : 3.6, ax = new V3().crossVectors(UP, f);
     for (let i = 0; i < NJ; i++) {
       const jt = p.joints[i], rx = jt.x - pel.x, ry = jt.y - pel.y, rz = jt.z - pel.z;
       // v = W (ax × rel), the legs kept from swinging up over him
       const vx = W * (ax.y * rz - ax.z * ry), vy = W * (ax.z * rx - ax.x * rz) * (ry < 0 ? 0.45 : 1), vz = W * (ax.x * ry - ax.y * rx);
-      p.prev[i].x -= vx * DT; p.prev[i].y -= (vy - 0.7) * DT; p.prev[i].z -= vz * DT;
+      p.prev[i].x -= vx * DT; p.prev[i].y -= (vy - (o.down != null ? o.down : 0.7)) * DT; p.prev[i].z -= vz * DT;
     }
     p.diveArms = new V3(f.x, -0.18, f.z).normalize();
   }
@@ -4164,10 +4170,10 @@ class World {
     const lead = c.pos.clone().addScaledVector(c.vel, 0.42), f = lead.sub(p.pos).setY(0);
     const dd = f.length(); if (dd < 1e-3) return this.dive(p); f.divideScalar(dd);
     p.chop = true; p.diving = true; p.mv = null;
-    p.vel.addScaledVector(f, 3.6);
+    p.vel.addScaledVector(f, 1.6);
     this.attempts = this.attempts.filter(A => A.t !== p);   // the chop replaces whatever lunge he had going
     this.startAttempt(p, c, 'dive', 1.0);
-    this.lowDive(p, f, 3.8);   // flat and low: arms out ahead at shin height
+    this.lowDive(p, f, 2.7, { drop: 0.15, W: 0.4, down: 0, up: 0.7, bias: -0.15 });   // from behind: a reaching dive, arms out at his thighs and heels
     Bus.emit('dive', { p, chop: true });
   }
   dive(p) {
