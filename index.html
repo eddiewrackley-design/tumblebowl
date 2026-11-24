@@ -3471,7 +3471,7 @@ class World {
     }
     return null;
   }
-  holdDist(t, c) { const tm = t.td && t.td.move; return 0.62 * (t.radius + c.radius) * (t.tackleStyle === 'low' ? 0.9 : 1) * (tm === 'suplex' ? 0.55 + 0.45 * clamp(1 - t.td.T / 0.25, 0, 1) : tm === 'lift' || tm === 'scoop' ? 0.8 : 1); }   // a suplex locks chest to back
+  holdDist(t, c) { const tm = t.td && t.td.move; return 0.84 * (t.radius + c.radius) * (t.tackleStyle === 'low' ? 0.9 : 1) * (tm === 'suplex' ? 0.55 + 0.45 * clamp(1 - t.td.T / 0.25, 0, 1) : tm === 'lift' || tm === 'scoop' ? 0.8 : 1); }   // a suplex locks chest to back
   startGrab(t, c, n, style, k) {
     if (c.battle) return this.joinBattle(c.battle, t, k);
     const a = this.holdSlot(t, c, c.grabbedBy);
@@ -3516,6 +3516,22 @@ class World {
     const r = hit / hold;
     if (r < 0.9 && !chance(r * 0.5)) return false;
     const rr = Math.min(r, 3.5), big = r > 1.8 && tin > 3;
+    // he wraps him up and takes him down, fast: arms round him, driving through (a slam, lift or scoop for a big
+    // man, a drive otherwise), not a body-check where the tackler runs past
+    if (this.startTakedown && t.state === 'up' && !c.td) {
+      const e = this.sizeEdge(t, c), lowT = t.tackleStyle === 'low' || t.diving;
+      const mv = lowT ? (chance(0.5 + 0.4 * e) ? 'scoop' : 'legwrap') : e > 0.5 && chance(0.6) ? (chance(0.6) ? 'slam' : 'lift') : chance(0.7) ? 'drive' : 'sidedrive';
+      this.startTakedown(t, c, n, mv, { kind: big ? 'big' : 'pop', style: 'pop', extra: { ratio: r } });
+      if (c.td) {
+        c.td.dur *= clamp(0.85 - 0.12 * rr, 0.4, 0.7);   // standing there, he goes down quick
+        const pos = c.pos.clone().lerp(t.pos, 0.45); pos.y = 1.0;
+        this.impacts.push({ pos, dv: 1.2 + tin * 0.5, j: t.mass * tin, t: 0, tackle: r, style: 'pop' });
+        Bus.emit('hit', { a: t, b: c, dv: 1.2 + tin * 0.5, j: t.mass * tin, pos, tackle: true, style: 'pop' });
+        t.wantsTackle = false; t.cool.tackle = Math.max(t.cool.tackle, 0.5);
+        if (c.hasBall) t.stats.tkl++;
+        return true;
+      }
+    }
     c.fall(n.clone().multiplyScalar(1.4 + 0.45 * tin + 0.35 * rr).add(new V3(0, 0.5 + 0.2 * rr, 0)), 0.7, big ? 'bighit' : 'tackle', rand(-0.6, 0.6));
     const pos = c.pos.clone().lerp(t.pos, 0.45); pos.y = 1.0;
     this.impacts.push({ pos, dv: 1.5 + tin * 0.6, j: t.mass * tin, t: 0, tackle: r, style: 'pop' });
