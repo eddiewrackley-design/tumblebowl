@@ -3253,6 +3253,11 @@ class World {
         b.pos.addScaledVector(n, pen * imb / ims);
         if (opp) { a.contact = 0.25; b.contact = 0.25; if (runner) runner.defTouchT = this.time; }
         if (opp && runner && runner.is('truck') && !this.deadBall) { const dfd = runner === a ? b : a; if (dfd.state === 'up' && !(runner.truckHit && runner.truckHit.has(dfd))) { const nn2 = runner === a ? n.clone() : n.clone().negate(); if (runner.fwd(_w.a).dot(nn2) > 0.2) { this.resolveTruck(runner, dfd, nn2); continue; } } }
+        // the sandbox: a J tackle into a dummy (or anybody) standing there pops him over
+        if (typeof Sandbox !== 'undefined' && Sandbox.active && !runner && !this.deadBall) {
+          if (a.is('tackle') && b.state === 'up' && this.standPop(a, b, n.clone())) continue;
+          if (b.is('tackle') && a.state === 'up' && this.standPop(b, a, n.clone().negate())) continue;
+        }
         const vrel = (b.vel.x - a.vel.x) * n.x + (b.vel.z - a.vel.z) * n.z;
         if (vrel >= 0) continue;
         const key = a.id < b.id ? a.id * 4096 + b.id : b.id * 4096 + a.id;
@@ -3499,6 +3504,30 @@ class World {
   }
   /* how much bigger and stronger the tackler is than the man he's tackling: 0 = an even match (or smaller),
      1 = a big, strong man on a much lighter one. Big men finish more tackles and take them down harder. */
+  /* a man standing still (or barely moving) has nothing to fight a tackle with: a real hit pops him straight
+     over. How hard depends on the tackler's mass, speed into him and strength against the man's mass and footing. */
+  standPop(t, c, n) {
+    // standing = not trying to go anywhere (a shove from the contact itself doesn't count as moving)
+    const sp = Math.min(Math.hypot(c.vel.x, c.vel.z), Math.hypot(c.desired.x, c.desired.z));
+    if (sp > 1.4 || c.state !== 'up' || c.y > 0.3 || c.is('truck') || c.is('stiff')) return false;
+    const tin = Math.max(0, t.vel.x * n.x + t.vel.z * n.z);
+    const hit = t.mass * (1 + tin) * (0.6 + 0.6 * t.str) * (0.7 + 0.3 * t.tackleSk);
+    const hold = c.mass * 2.2 * (0.5 + 0.4 * Math.min(c.stab, 1.5)) * (0.6 + 0.4 * clamp(c.balance, 0, 1)) * (c.stance ? 1.15 : 1) * (1 + 0.5 * sp);
+    const r = hit / hold;
+    if (r < 0.9 && !chance(r * 0.5)) return false;
+    const rr = Math.min(r, 3.5), big = r > 1.8 && tin > 3;
+    c.fall(n.clone().multiplyScalar(1.4 + 0.45 * tin + 0.35 * rr).add(new V3(0, 0.5 + 0.2 * rr, 0)), 0.7, big ? 'bighit' : 'tackle', rand(-0.6, 0.6));
+    const pos = c.pos.clone().lerp(t.pos, 0.45); pos.y = 1.0;
+    this.impacts.push({ pos, dv: 1.5 + tin * 0.6, j: t.mass * tin, t: 0, tackle: r, style: 'pop' });
+    Bus.emit('hit', { a: t, b: c, dv: 1.5 + tin * 0.6, j: t.mass * tin, pos, tackle: true, style: 'pop' });
+    // the tackler runs through it: on his feet if he's strong and the hit was clean, otherwise down on top
+    if (tin > 3.5 && (t.stab < 0.9 || chance(0.4))) t.fall(t.vel.clone().multiplyScalar(0.45).addScaledVector(n, 0.8).add(new V3(0, -0.3, 0)), 0.6, 'tackler', rand(-0.5, 0.5));
+    else t.vel.multiplyScalar(0.6);
+    t.wantsTackle = false; t.cool.tackle = Math.max(t.cool.tackle, 0.5);
+    if (c.hasBall) { this.fumbleCheck(c, 2 + tin * 0.5, t, { braced: false }); t.stats.tkl++; }
+    Bus.emit('tackle', { by: t, c, kind: big ? 'big' : 'pop', style: 'pop', dv: 2 + tin, ratio: r });
+    return true;
+  }
   sizeEdge(t, c) { return clamp(0.6 * clamp((t.mass - c.mass) / 35, -1, 1) + 0.4 * clamp((t.str - c.str) * 2.5, -1, 1), 0, 1); }
   resolveTackle(t, c, n, closing, k) {
     if (this.deadBall) return;
@@ -3509,6 +3538,8 @@ class World {
     const key = t.id * 4096 + c.id, last = this.tackleT.get(key);
     if (last !== undefined && this.time - last < 0.6) return;
     this.tackleT.set(key, this.time);
+    // a runner standing there (or barely moving) gets popped
+    if (this.standPop(t, c, n)) return;
     let style = this.tackleStyle(t, c, n);
     // where he actually got his hands/body on the runner refines the technique
     if (k && k.region === 'legs' && style !== 'dive' && style !== 'ankle') style = 'low';
