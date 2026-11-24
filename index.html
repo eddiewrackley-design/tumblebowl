@@ -1446,6 +1446,24 @@ input[type=range] { width: 100%; accent-color: var(--yellow); pointer-events: au
 #ovPause { z-index: 55; }
 /* the little i beside the gear on the main menu: reopens the announcement pop-ups */
 .infobtn { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 12px); right: calc(max(14px, env(safe-area-inset-right, 0px)) + 54px); z-index: 60; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(9,14,20,0.78); border: 1px solid var(--line); color: var(--chalk); cursor: pointer; pointer-events: auto; padding: 0; transition: color .2s, border-color .2s, transform .2s; }
+/* the shop bag beside the i: the Pro Celebration Pack teaser */
+.infobtn.shopbtn { right: calc(max(14px, env(safe-area-inset-right, 0px)) + 108px); }
+.shopov { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 16px; background: rgba(4,7,10,0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: shopfade .2s ease-out; }
+@keyframes shopfade { from { opacity: 0; } }
+@keyframes shopin { from { opacity: 0; transform: translateY(14px) scale(0.97); } }
+.shopcard { position: relative; width: min(460px, 100%); max-height: 100%; overflow-y: auto; background: linear-gradient(160deg, #1b2330 0%, #0c1117 70%); border: 1px solid rgba(242,210,27,0.35); border-radius: 16px; padding: 26px 24px 22px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); animation: shopin .25s ease-out; }
+.shopcard .sx { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border-radius: 50%; background: rgba(9,14,20,0.8); border: 1px solid var(--line); color: var(--chalk); font-size: 18px; cursor: pointer; display: grid; place-items: center; padding: 0; }
+.shopcard .sx:hover, .shopcard .sx:focus-visible { border-color: var(--yellow); color: var(--yellow); outline: none; }
+.shopcard .soon { display: inline-block; background: var(--yellow); color: #14130a; font: 900 11px var(--f-display); letter-spacing: 0.16em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; }
+.shopcard h2 { font: 900 30px/1.05 var(--f-display); letter-spacing: 0.02em; text-transform: uppercase; margin: 12px 0 4px; }
+.shopcard h2 em { color: var(--yellow); font-style: normal; }
+.shopcard .sp { color: var(--dim); margin: 0 0 16px; font-size: 14.5px; }
+.shopcard h4 { margin: 0 0 8px; font: 800 11.5px var(--f-display); letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); }
+.shopcard ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.shopcard li { display: flex; align-items: center; gap: 8px; background: rgba(238,241,234,0.04); border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px; font-size: 14px; font-weight: 600; }
+.shopcard li i { width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); flex: none; box-shadow: 0 0 8px rgba(242,210,27,0.6); }
+.shopcard .sok { width: 100%; margin-top: 18px; font-size: 17px; padding: 11px 18px; }
+@media (max-width: 420px) { .shopcard ul { grid-template-columns: 1fr; } }
 .infobtn:hover, .infobtn:focus-visible { color: var(--yellow); border-color: var(--yellow); transform: scale(1.08); outline: none; }
 .infobtn .ib-dot { position: absolute; top: 7px; right: 7px; width: 9px; height: 9px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 0 2px rgba(9,14,20,0.9); }
 
@@ -34520,6 +34538,25 @@ const UI = {
     $('patK').onclick = () => m.chooseTry(false);
     $('pat2').onclick = () => m.chooseTry(true);
   },
+  /* the shop: nothing for sale yet; the Pro Celebration Pack is on its way */
+  shopSoon() {
+    if ($('shopOv')) return;
+    const items = ['Griddy dance', 'Peek-a-Boo', 'Bend dance', 'Portal first down', 'Slime first down', 'Dunk the ball', 'Hug the goal post', "Flippin'", 'Jiggin\' dance'];
+    const ov = document.createElement('div'); ov.id = 'shopOv'; ov.className = 'shopov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-labelledby', 'shopH');
+    ov.innerHTML = `<div class="shopcard"><button class="sx" id="shopX" aria-label="Close">✕</button><span class="soon">Coming soon</span>
+      <h2 id="shopH">Pro Celebration <em>Pack</em></h2><p class="sp">New ways to celebrate are on the way. Here's what the pack includes:</p>
+      <h4>Pack includes</h4><ul>${items.map(n => `<li><i></i>${n}</li>`).join('')}</ul>
+      <button class="go sok" id="shopOk">Got it</button></div>`;
+    document.body.appendChild(ov);
+    const close = () => { Sfx.click && Sfx.click(); ov.remove(); document.removeEventListener('keydown', key, true); const b = $('shopBtn'); b && b.focus(); };
+    const key = (e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); close(); } else if (e.key !== 'Tab') e.stopPropagation(); };
+    document.addEventListener('keydown', key, true);
+    ov.onclick = (e) => { if (e.target === ov) close(); };
+    $('shopX').onclick = close; $('shopOk').onclick = close; $('shopOk').focus();
+    // a controller: A or B closes it
+    const pad = () => { if (!ov.isConnected) return; const g = PadCfg.gp(); if (g && ((g.buttons[0] && g.buttons[0].pressed && !pad.a) || (g.buttons[1] && g.buttons[1].pressed && !pad.b))) return close(); pad.a = !!(g && g.buttons[0] && g.buttons[0].pressed); pad.b = !!(g && g.buttons[1] && g.buttons[1].pressed); requestAnimationFrame(pad); };
+    const g0 = PadCfg.gp(); pad.a = !!(g0 && g0.buttons[0] && g0.buttons[0].pressed); pad.b = !!(g0 && g0.buttons[1] && g0.buttons[1].pressed); requestAnimationFrame(pad);
+  },
   /* the gear in the top right corner: settings from anywhere (in a game it's the pause menu, which carries them) */
   gear() {
     if ($('gearBtn')) return;
@@ -34749,12 +34786,14 @@ const UI = {
     if (this.menuView === 'home') {
       ov.innerHTML = `<div class="mhome ${prevView === 'mode' ? 'from-mode' : ''}"><div class="mark"><div class="eyebrow">Physics football · 11 on 11</div><h1>Tumble<br><em>Bowl</em></h1><p>Every block, cut, throw and tackle is solved by the physics engine. Momentum decides who falls; the ball flies, spins and bounces on its own.</p></div>
       <div class="modes" role="list">${modes.map(([id, n, d], i) => `<button class="mode" role="listitem" data-m="${id}" style="--i:${i}"><span class="ix">${ico(id)}</span><span><b>${n}</b><span>${d}</span></span><i class="go-ar" aria-hidden="true">›</i></button>`).join('')}</div>
-      ${(() => { const seen = (Game.settings.newsSeen || []); const un = ONBOARD_NEWS.some(n => !seen.includes(n.id)); return `<button class="infobtn" id="newsInfo" aria-label="Announcements" title="Announcements"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="7.4" r="1.4" fill="currentColor"/><path d="M12 11v6.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>${un ? '<i class="ib-dot"></i>' : ''}</button>`; })()}<div class="mfoot"><p class="note touchnote">Tumble Bowl is played with a keyboard or a gamepad.</p><p class="cloudb" id="cloudBadge" role="status"></p><div class="cloudbtns"><button class="ghost" id="newsBtn">News</button><button class="ghost" id="saveBackup">Back up saves</button><button class="ghost" id="saveRestore">Restore saves</button></div></div></div>`;
+      ${(() => { const seen = (Game.settings.newsSeen || []); const un = ONBOARD_NEWS.some(n => !seen.includes(n.id)); return `<button class="infobtn shopbtn" id="shopBtn" aria-label="Shop" title="Shop"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 10V7a3 3 0 016 0v3"/></svg></button><button class="infobtn" id="newsInfo" aria-label="Announcements" title="Announcements"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="7.4" r="1.4" fill="currentColor"/><path d="M12 11v6.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>${un ? '<i class="ib-dot"></i>' : ''}</button>`; })()}<div class="mfoot"><p class="note touchnote">Tumble Bowl is played with a keyboard or a gamepad.</p><p class="cloudb" id="cloudBadge" role="status"></p><div class="cloudbtns"><button class="ghost" id="newsBtn">News</button><button class="ghost" id="saveBackup">Back up saves</button><button class="ghost" id="saveRestore">Restore saves</button></div></div></div>`;
     } else {
       ov.innerHTML = `<div class="mscreen ${prevView === 'mode' ? '' : 'enter'}" data-mode="${this.menuSel}"><header class="ms-head"><button class="ms-back" id="menuBack" aria-label="Back to the main menu"><span aria-hidden="true">‹</span> Back</button><div class="ms-title"><div class="eyebrow">${ico(cur[0])} Game mode</div><h2>${cur[1]}</h2><p>${cur[2]}</p></div></header>
       <div class="ms-body"><div class="setup">${setup}</div><details class="ms-sec ms-more"><summary>Controls</summary>${keysHTML}</details></div></div>`;
     }
     if (typeof CloudSave !== 'undefined') CloudSave.badge(CloudSave.status);
+    // the shop bag: the Pro Celebration Pack, coming soon
+    if ($('shopBtn')) $('shopBtn').onclick = (e) => { e.stopPropagation(); Sfx.init && Sfx.init(); Sfx.click && Sfx.click(); UI.shopSoon(); };
     // the little i: the announcement pop-ups again, any time
     if ($('newsInfo')) $('newsInfo').onclick = (e) => { e.stopPropagation(); Sfx.init && Sfx.init(); Sfx.click && Sfx.click(); if (Onboard.isOpen()) return; const seen = Game.settings.newsSeen || []; Onboard.openNews(Math.max(0, ONBOARD_NEWS.findIndex(n => !seen.includes(n.id)))); const d = $('newsInfo') && $('newsInfo').querySelector('.ib-dot'); d && d.remove(); };
     if ($('newsBtn')) $('newsBtn').onclick = () => { Sfx.click && Sfx.click(); Onboard.openNewsPage(); };
@@ -34803,6 +34842,7 @@ const UI = {
   menuPad() {
     const ov = $('ovMenu'); if (!ov || ov.hidden || !Game.attract) return;
     if (typeof Onboard !== 'undefined' && Onboard.isOpen()) return;
+    if ($('shopOv')) return;
     for (const id of ['ovTeams', 'ovCustom', 'ovPause']) { const e = $(id); if (e && !e.hidden && e.childElementCount) return; }
     const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(g => g) : null; if (!gp) return;
     const B = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed), ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
