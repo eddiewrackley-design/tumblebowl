@@ -1444,6 +1444,10 @@ input[type=range] { width: 100%; accent-color: var(--yellow); pointer-events: au
 .gearbtn { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 12px); right: max(14px, env(safe-area-inset-right, 0px)); z-index: 60; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(9,14,20,0.78); border: 1px solid var(--line); color: var(--chalk); cursor: pointer; pointer-events: auto; transition: transform .2s, color .2s, border-color .2s; }
 .gearbtn:hover, .gearbtn:focus-visible { color: var(--yellow); border-color: var(--yellow); transform: rotate(45deg); outline: none; }
 #ovPause { z-index: 55; }
+/* the little i beside the gear on the main menu: reopens the announcement pop-ups */
+.infobtn { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 12px); right: calc(max(14px, env(safe-area-inset-right, 0px)) + 54px); z-index: 60; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(9,14,20,0.78); border: 1px solid var(--line); color: var(--chalk); cursor: pointer; pointer-events: auto; padding: 0; transition: color .2s, border-color .2s, transform .2s; }
+.infobtn:hover, .infobtn:focus-visible { color: var(--yellow); border-color: var(--yellow); transform: scale(1.08); outline: none; }
+.infobtn .ib-dot { position: absolute; top: 7px; right: 7px; width: 9px; height: 9px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 0 2px rgba(9,14,20,0.9); }
 
 /* ---------------- Create Center (studios) ---------------- */
 .rd.cc { background: radial-gradient(110% 80% at 80% -10%, #22164a 0%, rgba(11,16,22,0) 55%), radial-gradient(90% 70% at 0% 0%, #12304a 0%, #0b1016 62%); }
@@ -34727,12 +34731,14 @@ const UI = {
     if (this.menuView === 'home') {
       ov.innerHTML = `<div class="mhome ${prevView === 'mode' ? 'from-mode' : ''}"><div class="mark"><div class="eyebrow">Physics football · 11 on 11</div><h1>Tumble<br><em>Bowl</em></h1><p>Every block, cut, throw and tackle is solved by the physics engine. Momentum decides who falls; the ball flies, spins and bounces on its own.</p></div>
       <div class="modes" role="list">${modes.map(([id, n, d], i) => `<button class="mode" role="listitem" data-m="${id}" style="--i:${i}"><span class="ix">${ico(id)}</span><span><b>${n}</b><span>${d}</span></span><i class="go-ar" aria-hidden="true">›</i></button>`).join('')}</div>
-      <div class="mfoot"><p class="note touchnote">Tumble Bowl is played with a keyboard or a gamepad.</p><p class="cloudb" id="cloudBadge" role="status"></p><div class="cloudbtns"><button class="ghost" id="newsBtn">News</button><button class="ghost" id="saveBackup">Back up saves</button><button class="ghost" id="saveRestore">Restore saves</button></div></div></div>`;
+      ${(() => { const seen = (Game.settings.newsSeen || []); const un = ONBOARD_NEWS.some(n => !seen.includes(n.id)); return `<button class="infobtn" id="newsInfo" aria-label="Announcements" title="Announcements"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="7.4" r="1.4" fill="currentColor"/><path d="M12 11v6.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>${un ? '<i class="ib-dot"></i>' : ''}</button>`; })()}<div class="mfoot"><p class="note touchnote">Tumble Bowl is played with a keyboard or a gamepad.</p><p class="cloudb" id="cloudBadge" role="status"></p><div class="cloudbtns"><button class="ghost" id="newsBtn">News</button><button class="ghost" id="saveBackup">Back up saves</button><button class="ghost" id="saveRestore">Restore saves</button></div></div></div>`;
     } else {
       ov.innerHTML = `<div class="mscreen ${prevView === 'mode' ? '' : 'enter'}" data-mode="${this.menuSel}"><header class="ms-head"><button class="ms-back" id="menuBack" aria-label="Back to the main menu"><span aria-hidden="true">‹</span> Back</button><div class="ms-title"><div class="eyebrow">${ico(cur[0])} Game mode</div><h2>${cur[1]}</h2><p>${cur[2]}</p></div></header>
       <div class="ms-body"><div class="setup">${setup}</div><details class="ms-sec ms-more"><summary>Controls</summary>${keysHTML}</details></div></div>`;
     }
     if (typeof CloudSave !== 'undefined') CloudSave.badge(CloudSave.status);
+    // the little i: the announcement pop-ups again, any time
+    if ($('newsInfo')) $('newsInfo').onclick = (e) => { e.stopPropagation(); Sfx.init && Sfx.init(); Sfx.click && Sfx.click(); if (Onboard.isOpen()) return; const seen = Game.settings.newsSeen || []; Onboard.openNews(Math.max(0, ONBOARD_NEWS.findIndex(n => !seen.includes(n.id)))); const d = $('newsInfo') && $('newsInfo').querySelector('.ib-dot'); d && d.remove(); };
     if ($('newsBtn')) $('newsBtn').onclick = () => { Sfx.click && Sfx.click(); Onboard.openNewsPage(); };
     if (this.menuView === 'home' && typeof Onboard !== 'undefined') setTimeout(() => Onboard.maybeNews(), 1500);   // now and then: an announcement
     if ($('saveBackup')) $('saveBackup').onclick = async () => { const r = await CloudSave.backup(); const el = $('cloudBadge'); if (el && r === 'failed') el.textContent = 'Backup could not be saved here'; };
