@@ -3540,17 +3540,17 @@ class World {
     const hit = t.mass * (1 + tin) * (0.6 + 0.6 * t.str) * (0.7 + 0.3 * t.tackleSk);
     const hold = c.mass * 2.2 * (0.5 + 0.4 * Math.min(c.stab, 1.5)) * (0.6 + 0.4 * clamp(c.balance, 0, 1)) * (c.stance ? 1.15 : 1) * (1 + 0.5 * sp);
     const r = hit / hold;
-    if (r < 0.9 && !chance(r * 0.5)) return false;
+    const J = t.human && t.is('tackle');
+    if (!J && r < 0.9 && !chance(r * 0.5)) return false;
     const rr = Math.min(r, 3.5), big = r > 1.8 && tin > 3;
     // he wraps him up and takes him down, fast: arms round him, driving through (a slam, lift or scoop for a big
     // man, a drive otherwise), not a body-check where the tackler runs past
     if (this.startTakedown && t.state === 'up' && !c.td) {
       const e = this.sizeEdge(t, c), lowT = t.tackleStyle === 'low' || t.diving;
-      const J = !!t.human;   // your J: scoops and slams come up more
-      const mv = lowT ? (chance(0.5 + 0.4 * e + (J ? 0.2 : 0)) ? 'scoop' : 'legwrap') : (e > 0.5 || J) && chance(J ? 0.6 + 0.2 * e : 0.6) ? (chance(J ? 0.45 : 0) ? 'scoop' : chance(0.65) ? 'slam' : 'lift') : chance(0.7) ? 'drive' : 'sidedrive';
+      const mv = J ? 'jwrap' : lowT ? (chance(0.5 + 0.4 * e + (J ? 0.2 : 0)) ? 'scoop' : 'legwrap') : (e > 0.5 || J) && chance(J ? 0.6 + 0.2 * e : 0.6) ? (chance(J ? 0.45 : 0) ? 'scoop' : chance(0.65) ? 'slam' : 'lift') : chance(0.7) ? 'drive' : 'sidedrive';
       this.startTakedown(t, c, n, mv, { kind: big ? 'big' : 'pop', style: 'pop', extra: { ratio: r } });
       if (c.td) {
-        c.td.dur = c.td.clean ? clamp(0.62 - 0.05 * rr, 0.42, 0.58) : c.td.dur * clamp(0.85 - 0.12 * rr, 0.4, 0.7);   // standing there, he goes down quick (a J drives him back first)
+        c.td.dur = mv === 'jwrap' ? rand(0.36, 0.44) : c.td.clean ? clamp(0.62 - 0.05 * rr, 0.42, 0.58) : c.td.dur * clamp(0.85 - 0.12 * rr, 0.4, 0.7);   // standing there, he goes down quick (a J drives him back first)
         const pos = c.pos.clone().lerp(t.pos, 0.45); pos.y = 1.0;
         this.impacts.push({ pos, dv: 1.2 + tin * 0.5, j: t.mass * tin, t: 0, tackle: r, style: 'pop' });
         Bus.emit('hit', { a: t, b: c, dv: 1.2 + tin * 0.5, j: t.mass * tin, pos, tackle: true, style: 'pop' });
@@ -3699,6 +3699,13 @@ class World {
       else if (t.state === 'up') t.fall(t.vel.clone().multiplyScalar(legs ? 0.3 : 0.5).addScaledVector(n, legs ? 0.8 : 1.5).addScaledVector(c.vel, 0.2).add(new V3(0, legs ? -0.4 : 0, 0)), (legs ? -0.5 : 0.6) + rand(-0.1, 0.1), 'tackler', rand(-0.8, 0.8));
       t.stats.tkl++;
       Bus.emit('tackle', { by: t, c, kind: big ? 'big' : style, style, dv, power, ratio });
+    } else if (ratio > 0.75 && t.human && t.is('tackle') && this.startTakedown && c.state === 'up' && t.state === 'up') {
+      // your J tackle: wrapped up, no struggle. A slow or stopped runner is carried back and put down; a moving one
+      // is finished with the takedown that fits (scoops and slams come up a lot)
+      const slow = Math.hypot(c.vel.x, c.vel.z) < 3;
+      this.startTakedown(t, c, n, slow ? 'jwrap' : this.pickTakedown(t, c, n, style, Math.max(ratio, 2), {}), { kind: style, style, extra: { power, ratio } });
+      if (c.td && c.td.move === 'jwrap') c.td.dur = rand(0.38, 0.46);
+      return;
     } else if (ratio > 0.75 && style !== 'arm') {
       // wrapped up but not down: the struggle (and the drag) is on
       this.startBattle(t, c, n, ratio, false, k);
@@ -4598,7 +4605,8 @@ const TD_MOVES = {
   onearm:   { dur: 0.7, kind: 'onearm', park: 1 },    // one hand on the jersey of a man pulling away, dragged until he goes
   hitstick: { dur: 0.4, kind: 'hitstick', park: 1 },   // a running hit through the chest: stood up and knocked back
   collision:{ dur: 0.45, kind: 'collision', park: 1 }, // two men at full speed head-on: both stopped dead, both go down
-  sidedrive:{ dur: 0.85, kind: 'sidedrive', park: 1 },  // hit from the side and carried sideways off his line
+  sidedrive:{ dur: 0.85, kind: 'sidedrive', park: 1 },
+  jwrap:    { dur: 0.4, kind: 'jwrap' },                  // your J: arms round his waist at full speed, carried back off his feet and put on his back, you on top  // hit from the side and carried sideways off his line
 };
 Object.assign(World.prototype, {
   /* which takedown fits this contact */
@@ -4708,7 +4716,9 @@ Object.assign(World.prototype, {
       v0: Math.hypot(c.vel.x, c.vel.z), info, done: false, t0: t, vr: Math.random() };
     // your J tackle: wrap him up and DRIVE him back. The pile goes the way you hit him, legs churning, faster the
     // bigger, stronger and quicker you are, then he goes down (on his back for a scoop, slammed for a slam)
-    if (t.human && (t.is('tackle') || info.style === 'pop')) {
+    TD.tin = Math.max(2.5, t.vel.x * n.x + t.vel.z * n.z);
+    if (move === 'jwrap') {}
+    else if (t.human && (t.is('tackle') || info.style === 'pop')) {
       const tin = Math.max(0, t.vel.x * n.x + t.vel.z * n.z), e = this.sizeEdge ? this.sizeEdge(t, c) : 0;
       if (info.style === 'pop') { TD.jd = 1.0; TD.clean = true; }   // he's standing there: a clean takedown, just a short carry, no feet chopping
       else { TD.jd = clamp(1.9 + 0.3 * tin + 1.4 * e, 2, 5); TD.dur = Math.max(TD.dur, 0.6); }
@@ -4762,6 +4772,7 @@ Object.assign(World.prototype, {
         case 'onearm': v = TD.v0 * (0.85 - 0.5 * k); dir = _w.d.copy(f).lerp(_w.e.copy(n).multiplyScalar(-1), 0.25 * k).normalize(); break;   // still running, being pulled back
         case 'hitstick': v = (k < 0.4 ? 2.2 + TD.v0 * 0.2 : 1.6) * (1 - 0.5 * k); dir = n; break;    // stood straight up and driven back
         case 'collision': v = k < 0.35 ? TD.v0 * (1 - k / 0.35) * 0.25 : 0.7 * (1 - k); dir = k < 0.35 ? f : n; break;   // both stopped dead, then rocked back
+        case 'jwrap': v = (TD.tin || 3) * 0.8 * (1 - 0.55 * k) + 0.6; dir = n; break;   // the tackler's own speed carries them both
         case 'sidedrive': v = 2.6 * (1 - 0.6 * k) + TD.v0 * 0.25 * (1 - k); dir = _w.d.copy(n).lerp(f, 0.25).normalize(); break;   // carried sideways off his line
       }
       c.vel.x = dir.x * v; c.vel.z = dir.z * v;
@@ -4784,6 +4795,7 @@ Object.assign(World.prototype, {
         case 'onearm': F.leanF = 0.25 - 0.4 * k; F.leanS = -TD.side * 0.35 * k; F.twist = -TD.side * 0.4 * k; F.cadence = 2.6; F.amp = 0.9; break;   // fighting forward, the jersey pulling him round
         case 'hitstick': F.leanF = -0.45 - 0.2 * TD.vr; F.crouch = 0; F.amp = 0.3; F.arms = 'fight'; break;
         case 'collision': F.leanF = k < 0.35 ? -0.35 : -0.25 - 0.2 * k; F.crouch = 0.05; F.amp = 0.4; break;
+        case 'jwrap': F.leanF = -0.25 - 0.75 * smooth(k); F.crouch = 0.15; F.amp = 0.35; F.cadence = 2; break;   // bent back over the arms round his waist
         case 'sidedrive': F.leanS = TD.side * (0.25 + 0.4 * k); F.leanF = 0.05; F.crouch = 0.15; F.cadence = 3.2; F.amp = 0.7; break;
       }
       // a lift takes his feet off the ground for a moment
@@ -4792,6 +4804,7 @@ Object.assign(World.prototype, {
       if (TD.move === 'scoop') { c.y = 0.18 * c.H * Math.sin(Math.min(1, k * 1.3) * Math.PI * 0.5) * (k < 0.85 ? 1 : (1 - k) / 0.15); c.vy = 0; }
       // the suplex: up onto the hip, held at the top of the arc, then lowered (the finish puts him down on his side)
       if (TD.move === 'suplex') { const up = k < 0.3 ? 0 : k < 0.75 ? smooth((k - 0.3) / 0.45) : 1 - 0.55 * smooth((k - 0.75) / 0.25); c.y = 0.78 * c.H * up; c.vy = 0; }
+      if (TD.move === 'jwrap') { c.y = 0.1 * c.H * Math.sin(Math.min(1, k * 1.4) * Math.PI); c.vy = 0; }   // his feet leave the ground
       if (TD.move === 'hitstick' && k < 0.5) { c.y = 0.06 * c.H * Math.sin(k / 0.5 * Math.PI); c.vy = 0; }
       // the tacklers stay on him: low on the legs for the chop and leg wrap, at the waist otherwise
       for (const t of TD.ts) {
@@ -4808,6 +4821,7 @@ Object.assign(World.prototype, {
         else if (TD.move === 'onearm') { G.crouch = 0.25; G.leanF = -0.15 - 0.2 * k; G.amp = 1.1; G.cadence = 3; }   // leaning back on the handful of jersey
         else if (TD.move === 'hitstick') { G.crouch = 0.4; G.leanF = 0.55; G.amp = 1.2; G.cadence = 3.2; }   // running through him
         else if (TD.move === 'collision') { G.crouch = 0.2; G.leanF = k < 0.35 ? -0.2 : -0.3 * k; G.amp = 0.4; }
+        else if (TD.move === 'jwrap') { G.crouch = 0.35; G.leanF = 0.65; G.amp = 0.8; }   // head across, arms round the waist, running through
         else if (TD.move === 'sidedrive') { G.crouch = 0.55; G.leanF = 0.7; G.cadence = 3.4; G.amp = 1.2; }
         else { G.crouch = 0.45; G.leanF = 0.55; }
         if (TD.jd && !TD.clean && TD.move !== 'suplex') { G.crouch = Math.max(G.crouch, 0.5); G.leanF = Math.max(G.leanF, 0.7); G.cadence = 3.6; G.amp = 1.25; }
@@ -4841,12 +4855,13 @@ Object.assign(World.prototype, {
       case 'onearm': imp = side.clone().multiplyScalar(-1.2).addScaledVector(f, 1.2 + 0.15 * TD.v0).add(new V3(0, 0.3, 0)); bias = 0.2; spin = -s * 1.4; break;   // pulled down sideways at speed
       case 'hitstick': imp = n.clone().multiplyScalar(3 + 0.25 * TD.v0).add(new V3(0, 0.8, 0)); bias = 0.95; spin = s * 0.5; reason = 'bighit'; break;   // flat on his back
       case 'collision': imp = n.clone().multiplyScalar(2.4).addScaledVector(side, 0.4).add(new V3(0, 0.5, 0)); bias = 0.85; spin = s * 0.6; reason = 'bighit'; break;
+      case 'jwrap': imp = n.clone().multiplyScalar(2.2 + 0.3 * (TD.tin || 3)).add(new V3(0, 0.3, 0)); bias = 0.95; spin = s * 0.4; break;   // on his back
       case 'sidedrive': imp = n.clone().multiplyScalar(2.3).addScaledVector(f, 0.4).add(new V3(0, 0.3, 0)); bias = 0.7; spin = s * 0.9; break;
       case 'chop': default: imp = f.clone().multiplyScalar(1.4 + 0.45 * TD.v0).add(new V3(0, 0.6, 0)); bias = -1.0; spin = s * 0.8; break;
     }
     c.y = Math.max(0, c.y);
     const hard = TD.move === 'slam' || TD.move === 'lift' || TD.move === 'hitstick' || TD.move === 'collision' || TD.move === 'suplex';
-    if (t0) this.fumbleCheck(c, hard ? 3.4 : 2.4, t0, { braced: TD.move !== 'slam' && TD.move !== 'chop' && TD.move !== 'hitstick' });   // a chance, never a certainty
+    if (t0 && TD.move !== 'jwrap') this.fumbleCheck(c, hard ? 3.4 : 2.4, t0, { braced: TD.move !== 'slam' && TD.move !== 'chop' && TD.move !== 'hitstick' });   // a chance, never a certainty
     if (c.state === 'up') c.fall(imp, bias + rand(-0.08, 0.08), reason, spin + rand(-0.3, 0.3));
     // the tacklers go down with him: on top for a slam, lift or drive; underneath at the legs for a chop
     for (const t of ts) if (t.state === 'up') {
@@ -4858,6 +4873,7 @@ Object.assign(World.prototype, {
       else if (TD.move === 'hitstick') t.fall(n.clone().multiplyScalar(0.9).add(new V3(0, -0.4, 0)), 0.6, 'tackler', rand(-0.4, 0.4));   // follows him down, on top of him
       else if (TD.move === 'collision') t.fall(n.clone().multiplyScalar(-1.8).add(new V3(0, 0.4, 0)), 0.8, 'tackler', rand(-0.6, 0.6));   // knocked back too
       else if (TD.move === 'onearm') t.fall(f.clone().multiplyScalar(0.9).addScaledVector(n, 0.4).add(new V3(0, -0.2, 0)), 0.1, 'tackler', rand(-0.5, 0.5));
+      else if (TD.move === 'jwrap') t.fall(n.clone().multiplyScalar(1.4 + 0.15 * (TD.tin || 3)).add(new V3(0, -0.4, 0)), 0.7, 'tackler', rand(-0.3, 0.3));   // lands on top of him
       else if (TD.move === 'sidedrive' || TD.move === 'spindown') t.fall(n.clone().multiplyScalar(1.3).add(new V3(0, -0.3, 0)), 0.6, 'tackler', s * 0.5);
       else t.fall(t.vel.clone().multiplyScalar(0.4).addScaledVector(TD.move === 'drive' ? n : f, 1.3), TD.move === 'drive' ? 0.6 : -0.3, 'tackler', rand(-0.6, 0.6));
     }
