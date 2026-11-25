@@ -12880,7 +12880,7 @@ Object.assign(Gfx, {
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.castShadow = true; im.frustumCulled = false;
       im.setColorAt(0, new THREE.Color()); im.count = 0; this.scene.add(im); return im;
     };
-    const S = this.side = { cyl: mk(G.cyl, mat, 4200), box: mk(G.box, mat, 2200), sph: mk(G.sph, gloss, 1100), figs: [], cheer: [0, 0], down: 0, uni: [null, null], M: new THREE.Matrix4(), Q: new QUAT(), C: new THREE.Color(), t: 0 };
+    const S = this.side = { cyl: mk(G.cyl, mat, 4200), box: mk(G.box, mat, 2700), sph: mk(G.sph, gloss, 1900), figs: [], cheer: [0, 0], down: 0, uni: [null, null], M: new THREE.Matrix4(), Q: new QUAT(), C: new THREE.Color(), t: 0 };
     this.buildSideProps();
     this.buildCoin();
     // people: two team areas
@@ -13344,12 +13344,12 @@ Object.assign(Gfx, {
       S.cyl.setMatrixAt(cnt.c, M); S.cyl.setColorAt(cnt.c, col(c)); cnt.c++;
     };
     const blk = (cx, w, h, d, c, pitch = 0) => {
-      if (cnt.b >= 2200) return;
+      if (cnt.b >= 2700) return;
       Q.setFromEuler(this._e.set(pitch, yaw, 0, 'YXZ')); if (T) Q.premultiply(tq);
       M.compose(cx, Q, this._u.set(w, h, d)); S.box.setMatrixAt(cnt.b, M); S.box.setColorAt(cnt.b, col(c)); cnt.b++;
     };
     const ball = (cx, r, c, sy = 1) => {
-      if (cnt.s >= 1100) return;
+      if (cnt.s >= 1900) return;
       Q.setFromEuler(this._e.set(0, yaw, 0)); if (T) Q.premultiply(tq);
       M.compose(cx, Q, this._u.set(r, r * sy, r)); S.sph.setMatrixAt(cnt.s, M); S.sph.setColorAt(cnt.s, col(c)); cnt.s++;
     };
@@ -13400,6 +13400,7 @@ Object.assign(Gfx, {
       blk(O(headC, fx * 0.12, -0.05, fz * 0.12), 0.2, 0.1, 0.05, U.mask);
     } else {
       ball(headC, 0.112, F.skin);
+      if (!player && (F.kind === 'coach' || F.kind === 'staff')) this.sideFace({ O, ball, blk, fx, fz, rx, rz }, headC, 0.112, F.skin, false);
       if (!player) {
         const cap = photo ? (F.cap || F.shirt) : ref ? (F.role === 'R' ? 0xf6f6f6 : 0x111111) : F.kind === 'crew' ? 0x111111 : def ? def.trim : 0x222222;
         ball(O(headC, 0, 0.05, 0), 0.118, cap, cold ? 0.85 : 0.55);   // a beanie in the cold, a cap otherwise
@@ -13521,6 +13522,20 @@ Object.assign(Gfx, {
 });
 /* a cheerleader: skirt and top in the school colors, pom-poms, a ponytail; she runs the squad's routine on
    cue (Cutscene sets side.routine[team]) and does small pom moves between plays */
+/* a face on a sideline figure's head: eyes, brows, nose and mouth, turned the way he faces (hc: head centre, R: head radius) */
+Gfx.sideFace = function (H, hc, R, skin, smile) {
+  const { O, ball, blk, fx, fz, rx, rz } = H;
+  const sk = this._faceC || (this._faceC = new THREE.Color());
+  const nose = sk.set(skin).multiplyScalar(0.82).getHex();
+  for (const sd of [-1, 1]) {
+    ball(O(hc, fx * 0.86 * R + rx * sd * 0.36 * R, 0.1 * R, fz * 0.86 * R + rz * sd * 0.36 * R), 0.16 * R, 0xf4f1ea, 0.85);   // the white
+    ball(O(hc, fx * 0.97 * R + rx * sd * 0.36 * R, 0.09 * R, fz * 0.97 * R + rz * sd * 0.36 * R), 0.09 * R, 0x1c140e, 1.1);   // the pupil
+    blk(O(hc, fx * 0.9 * R + rx * sd * 0.36 * R, 0.33 * R, fz * 0.9 * R + rz * sd * 0.36 * R), 0.3 * R, 0.06 * R, 0.08 * R, 0x2a1d14);   // brow
+  }
+  ball(O(hc, fx * 1.0 * R, -0.12 * R, fz * 1.0 * R), 0.15 * R, nose, 1.1);   // nose
+  blk(O(hc, fx * 0.9 * R, -0.45 * R, fz * 0.9 * R), smile ? 0.42 * R : 0.34 * R, 0.07 * R, 0.08 * R, smile ? 0x8a2f3a : 0x5c3028);   // mouth
+  if (smile) for (const sd of [-1, 1]) blk(O(hc, fx * 0.86 * R + rx * sd * 0.22 * R, -0.4 * R, fz * 0.86 * R + rz * sd * 0.22 * R), 0.07 * R, 0.07 * R, 0.07 * R, 0x8a2f3a);   // the corners turned up
+};
 Gfx.cheerFig = function (F, H) {
   const { L, O, seg, blk, ball, t, fx, fz } = H, S = this.side;
   const def = S.defs && S.defs[F.team], jc = def ? def.jersey : 0x777777, tc = def ? (def.trim === 0x15171a || def.trim === 0x16181b ? 0xf2f2ee : def.trim) : 0xffffff;
@@ -13553,6 +13568,7 @@ Gfx.cheerFig = function (F, H) {
   // head, hair and ponytail with a bow
   const head = P(0.02, 1.53, 0); seg(P(0, 1.32, 0), head, 0.045, F.skin);
   ball(head, 0.098, F.skin); ball(O(head, -fx * 0.02, 0.035, -fz * 0.02), 0.102, F.hairC, 0.75);
+  this.sideFace(H, head, 0.098, F.skin, true);
   ball(O(head, -fx * 0.13, -0.04 - 0.03 * Math.sin(t * 6), -fz * 0.13), 0.055, F.hairC, 1.7); ball(O(head, -fx * 0.1, 0.03, -fz * 0.1), 0.035, tc);
   // arms and pom-poms
   for (const sd of [-1, 1]) {
@@ -23848,6 +23864,16 @@ const Postgame = {
     mk(new THREE.CylinderGeometry(0.05, 0.055, 0.1, 8), sk, 0, 1.58, 0);   // neck
     mk(new THREE.CylinderGeometry(0.15, 0.17, 0.08, 12), M(o.trim), 0, 1.52, 0).scale.x = 0.65;   // collar / trim
     const head = mk(new THREE.SphereGeometry(0.115, 14, 10), sk, 0, 1.68, 0);
+    { // the face
+      const eyeG = this._eyeG || (this._eyeG = new THREE.SphereGeometry(1, 8, 6)), wm = M(0xf4f1ea), pm = M(0x1c140e), dm = M(0x2a1d14);
+      for (const sd of [-1, 1]) {
+        const w = mk(eyeG, wm, 0.099, 1.692, sd * 0.042); w.scale.set(0.012, 0.016, 0.018);
+        const p = mk(eyeG, pm, 0.111, 1.691, sd * 0.042); p.scale.set(0.008, 0.01, 0.01);
+        mk(new THREE.BoxGeometry(0.012, 0.008, 0.036), dm, 0.104, 1.718, sd * 0.042);   // brow
+      }
+      const nz = mk(eyeG, M(new THREE.Color(skin).multiplyScalar(0.84).getHex(), 0.6), 0.116, 1.666, 0); nz.scale.set(0.02, 0.022, 0.016);
+      mk(new THREE.BoxGeometry(0.012, 0.009, 0.042), M(0x5c3028), 0.105, 1.632, 0);   // mouth
+    }
     if (o.hat) { mk(new THREE.CylinderGeometry(0.12, 0.125, 0.07, 14), M(o.hat), 0, 1.76, 0); const br = mk(new THREE.BoxGeometry(0.2, 0.012, 0.12), M(o.hat), 0.12, 1.735, 0); }
     else mk(new THREE.SphereGeometry(0.12, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), M(o.hair || 0x2a2018), 0, 1.7, 0);
     if (o.headset) { mk(new THREE.TorusGeometry(0.125, 0.012, 6, 16, Math.PI), M(0x15171a), 0, 1.7, 0).rotation.y = Math.PI / 2; mk(new THREE.SphereGeometry(0.04, 8, 6), M(0x15171a), 0, 1.66, 0.12); mk(new THREE.SphereGeometry(0.04, 8, 6), M(0x15171a), 0, 1.66, -0.12); }
@@ -24960,6 +24986,12 @@ const Mascots = {
     torso.add(mk(G.box, trim, base ? 0.3 : 0.26, 0.04, 0.2, 0, 0.32, 0));
     if (!base) { const sk = mk(G.cone, top, 0.2, 0.26, 0.2, 0, -0.08, 0); sk.rotation.x = Math.PI; hips.add(sk); hips.add(mk(G.cyl, trim, 0.2, 0.03, 0.2, 0, -0.2, 0)); }
     head.add(mk(G.sph, skin, 0.11, 0.13, 0.115, 0, 0.12, 0));
+    { // the face: eyes, brows, nose and a smile
+      const wm = this.mat(0xf4f1ea), pm = this.mat(0x1c140e), lm = this.mat(0x8a2f3a);
+      for (const sd of [-1, 1]) { head.add(mk(G.sph, wm, 0.018, 0.014, 0.01, sd * 0.04, 0.135, 0.103)); head.add(mk(G.sph, pm, 0.01, 0.01, 0.008, sd * 0.04, 0.134, 0.111)); head.add(mk(G.box, this.mat(0x2a1d14), 0.034, 0.007, 0.01, sd * 0.04, 0.16, 0.104)); }
+      head.add(mk(G.sph, skin, 0.016, 0.02, 0.018, 0, 0.115, 0.115));
+      head.add(mk(G.box, lm, 0.04, 0.01, 0.01, 0, 0.078, 0.108));
+    }
     const hair = this.mat([0x2a1c12, 0x5a3a22, 0x15171a, 0xc8a060, 0x7a4a2a][(r() * 5) | 0]);
     head.add(mk(G.sph, hair, 0.12, 0.09, 0.12, 0, 0.19, -0.02));
     if (!base) { head.add(mk(G.sph, hair, 0.05, 0.12, 0.05, 0, 0.12, -0.13)); head.add(mk(G.sph, trim, 0.05, 0.03, 0.05, 0, 0.22, -0.11)); }
