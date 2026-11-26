@@ -12047,13 +12047,59 @@ const CelebWheel = {
    overlays, particles, weather, and debug visualization.
    ============================================================ */
 const lin = (hex) => new THREE.Color(hex).convertSRGBToLinear();
+/* graphics quality presets. pr: render resolution (capped by the screen), sh: shadow map size, soft: soft shadow
+   edges, det: turf blades and uniform fabric up close, glare: halo around the stadium lights at night, wx: weather
+   particle density. Anti-aliasing is chosen when the game loads. */
+const GFX_PRESETS = {
+  low:    { name: 'Low',    pr: 1,    sh: 1024, soft: false, det: 0, glare: 0,   wx: 0.45, aa: false },
+  medium: { name: 'Medium', pr: 1.25, sh: 1024, soft: false, det: 1, glare: 0.7, wx: 1,    aa: 'auto' },
+  high:   { name: 'High',   pr: 1.5,  sh: 2048, soft: true,  det: 2, glare: 1,   wx: 1,    aa: true },
+  ultra:  { name: 'Ultra',  pr: 2,    sh: 4096, soft: true,  det: 2, glare: 1,   wx: 1,    aa: true },
+};
+const GfxQ = {
+  /* what this device can comfortably run: phones and tablets never get pushed past Medium, software renderers and
+     older integrated chips get Low, everything else High (Ultra is never forced: you pick it) */
+  recommend() {
+    if (this._rec) return this._rec;
+    const ua = navigator.userAgent || '', mob = /Mobi|Android|iPhone|iPad|iPod/i.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua));
+    const cores = navigator.hardwareConcurrency || 4, mem = navigator.deviceMemory || 8;
+    let gpu = '';
+    try { const c = document.createElement('canvas'), gl = c.getContext('webgl'); const ext = gl && gl.getExtension('WEBGL_debug_renderer_info'); gpu = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : ''; } catch (e) { }
+    let r;
+    if (/SwiftShader|llvmpipe|Software|Mali-[4T]|Adreno \(TM\) [345]\d\d|PowerVR/i.test(gpu)) r = 'low';
+    else if (mob) r = cores >= 6 && mem >= 4 ? 'medium' : 'low';
+    else if (cores <= 2 || mem <= 2 || /Intel.*HD Graphics [2-5]\d\d\b/i.test(gpu)) r = 'medium';
+    else r = 'high';
+    return (this._rec = r);
+  },
+  /* the settings in force: a preset, or a preset with your own changes on top ('custom') */
+  current() {
+    const S = (typeof Game !== 'undefined' && Game.settings) || {};
+    const q = GFX_PRESETS[S.gfxQ] ? S.gfxQ : S.gfxQ === 'custom' ? 'custom' : this.recommend();
+    const base = Object.assign({}, GFX_PRESETS[q === 'custom' ? (S.gfxBase || this.recommend()) : q]);
+    if (q === 'custom' && S.gfx) Object.assign(base, S.gfx);
+    base.q = q; return base;
+  },
+  /* pick a preset (its weather-particle level comes with it) */
+  setPreset(v) {
+    const S = Game.settings; S.gfxQ = v; S.gfx = null; S.gfxBase = null; S.wxQ = GFX_PRESETS[v].wx;
+    Game.saveSettings(); Gfx.applyQuality(); Gfx.precipScale = S.wxQ; if (Gfx.precipFor) Gfx.precipFor();
+  },
+  /* change one setting on its own: the preset becomes Custom, keeping everything else as it was */
+  setOne(k, v) {
+    const S = Game.settings, cur = this.current();
+    if (S.gfxQ !== 'custom') { S.gfxBase = GFX_PRESETS[cur.q] ? cur.q : this.recommend(); S.gfx = {}; }
+    S.gfxQ = 'custom'; S.gfx = Object.assign({}, S.gfx || {}, k === 'sh' ? { sh: +v, soft: +v >= 2048 } : { [k]: +v });
+    Game.saveSettings(); Gfx.applyQuality();
+  },
+};
 const Gfx = {
   init(container) {
-    const dpr = window.devicePixelRatio || 1;
-    const r = this.renderer = new THREE.WebGLRenderer({ antialias: dpr < 1.5, powerPreference: 'default' });
-    r.setPixelRatio(Math.min(dpr, 1.5));
+    const dpr = window.devicePixelRatio || 1, Q = this.Q = GfxQ.current();
+    const r = this.renderer = new THREE.WebGLRenderer({ antialias: Q.aa === 'auto' ? dpr < 1.5 : !!Q.aa, powerPreference: Q.q === 'low' ? 'default' : 'high-performance' });
+    r.setPixelRatio(Math.min(dpr, Q.pr));
     r.shadowMap.enabled = true;
-    r.shadowMap.type = THREE.PCFShadowMap;
+    r.shadowMap.type = Q.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     r.outputEncoding = THREE.sRGBEncoding;
     r.toneMapping = THREE.ACESFilmicToneMapping;
     r.toneMappingExposure = 0.82;
@@ -12084,6 +12130,92 @@ const Gfx = {
     window.addEventListener('orientationchange', later);
     if (window.visualViewport) window.visualViewport.addEventListener('resize', later);
     if (window.ResizeObserver && this.container) new ResizeObserver(() => this.resize()).observe(this.container);
+    this.applyQuality(true);
+  },
+  /* ---------- graphics quality ---------- */
+  applyQuality(first) {
+    const Q = this.Q = GfxQ.current(), r = this.renderer, dpr = window.devicePixelRatio || 1;
+    r.setPixelRatio(Math.min(dpr, Q.pr)); this.resize();
+    const d = this.sun;
+    if (d && d.shadow.mapSize.x !== Q.sh) { d.shadow.mapSize.set(Q.sh, Q.sh); if (d.shadow.map) { d.shadow.map.dispose(); d.shadow.map = null; } }
+    // ultra keeps the shadow box a little tighter round the play, for crisper player shadows
+    if (d) { const e = Q.q === 'ultra' ? 30 : 34, c = d.shadow.camera; if (c.right !== e) { c.left = c.bottom = -e; c.right = c.top = e; c.updateProjectionMatrix(); } d.shadow.radius = Q.soft ? 1.6 : 1; }
+    const type = Q.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+    if (r.shadowMap.type !== type) { r.shadowMap.type = type; r.shadowMap.needsUpdate = true; if (!first) this.scene.traverse(o => { const m = o.material; if (m) (Array.isArray(m) ? m : [m]).forEach(x => x.needsUpdate = true); }); }
+    this.detailU.k.value = Q.det ? 1 : 0;
+    if (typeof Gear !== 'undefined' && Gear.fabU) Gear.fabU.k.value = Q.det >= 2 ? 1 : 0;
+    if (first && !(Game.settings && Game.settings.wxQ)) this.precipScale = Q.wx;
+  },
+  /* a tiling detail texture for the turf: R = grass blades, G = finer speckle, B = big soft patches of light and
+     dark (worn, freshly cut, a little drier), all centred on mid-grey so they only nudge the painted field */
+  detailTex() {
+    if (this._detT) return this._detT;
+    const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d');
+    const layer = (draw) => { const k = document.createElement('canvas'); k.width = k.height = N; const x = k.getContext('2d'); x.fillStyle = '#808080'; x.fillRect(0, 0, N, N); draw(x); return x.getImageData(0, 0, N, N).data; };
+    const wrap = (x, f) => { for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) f(ox, oy); };
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const R = layer(x => { x.lineCap = 'round'; for (let i = 0; i < 9000; i++) { const px = rnd() * N, py = rnd() * N, a = rnd() * Math.PI * 2, L = 2 + rnd() * 5, v = Math.round(60 + rnd() * 140); x.strokeStyle = `rgb(${v},${v},${v})`; x.lineWidth = 0.8 + rnd() * 0.9; wrap(0, (ox, oy) => { x.beginPath(); x.moveTo(px + ox, py + oy); x.lineTo(px + ox + Math.cos(a) * L, py + oy + Math.sin(a) * L); x.stroke(); }); } });
+    const Gc = layer(x => { for (let i = 0; i < 22000; i++) { const px = rnd() * N, py = rnd() * N, v = Math.round(70 + rnd() * 120); x.fillStyle = `rgb(${v},${v},${v})`; x.fillRect(px, py, 1.3, 1.3); } });
+    const B = layer(x => { x.filter = 'blur(14px)'; for (let i = 0; i < 46; i++) { const px = rnd() * N, py = rnd() * N, rr = 18 + rnd() * 46, v = Math.round(90 + rnd() * 76); x.fillStyle = `rgb(${v},${v},${v})`; wrap(0, (ox, oy) => { x.beginPath(); x.ellipse(px + ox, py + oy, rr, rr * (0.6 + rnd() * 0.5), rnd() * 3, 0, Math.PI * 2); x.fill(); }); } });
+    const img = g.createImageData(N, N);
+    for (let i = 0; i < N * N * 4; i += 4) { img.data[i] = R[i]; img.data[i + 1] = Gc[i]; img.data[i + 2] = B[i]; img.data[i + 3] = 255; }
+    g.putImageData(img, 0, 0);
+    const t = this._detT = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    return t;
+  },
+  /* the turf shader: the painted field (lines, numbers, logos, mowing stripes) with real grass texture on top.
+     Close up you see blades; far away it settles into gentle patches of colour. Never shiny. */
+  turfDetail(mat, strength) {
+    const U = this.detailU || (this.detailU = { tex: { value: this.detailTex() }, k: { value: 1 } });
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uDet = U.tex; sh.uniforms.uDetK = U.k; sh.uniforms.uDetS = { value: strength };
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vTurfW;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvTurfW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D uDet; uniform float uDetK; uniform float uDetS; varying vec3 vTurfW;')
+        .replace('#include <map_fragment>', `#include <map_fragment>
+          if (uDetK > 0.0) {
+            vec2 q = vTurfW.xz;
+            float blades = texture2D(uDet, q * 0.62).r, speck = texture2D(uDet, q * 0.23 + vec2(0.37, 0.71)).g;
+            float patches = texture2D(uDet, q * 0.017).b, patches2 = texture2D(uDet, q * 0.0063 + vec2(0.5)).b;
+            float near = 1.0 - smoothstep(22.0, 95.0, length(vTurfW - cameraPosition));
+            float g = (blades - 0.5) * 0.42 * (0.3 + 0.7 * near) + (speck - 0.5) * 0.2 + (patches - 0.5) * 0.42 + (patches2 - 0.5) * 0.3;
+            diffuseColor.rgb *= 1.0 + uDetK * uDetS * g;
+            diffuseColor.g *= 1.0 + uDetK * uDetS * (patches - 0.5) * 0.12;
+          }`);
+    };
+    mat.customProgramCacheKey = () => 'turf' + strength;
+    mat.needsUpdate = true;
+  },
+  /* stadium lights at night: a soft halo and a faint horizontal streak round each bank of lamps */
+  glareTex() {
+    if (this._glT) return this._glT;
+    const N = 128, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d');
+    const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.12, 'rgba(255,250,235,0.85)'); gr.addColorStop(0.35, 'rgba(255,240,210,0.22)'); gr.addColorStop(1, 'rgba(255,230,200,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, N, N);
+    const st = g.createLinearGradient(0, 0, N, 0); st.addColorStop(0, 'rgba(255,245,225,0)'); st.addColorStop(0.5, 'rgba(255,248,235,0.5)'); st.addColorStop(1, 'rgba(255,245,225,0)');
+    g.fillStyle = st; g.fillRect(0, 62, N, 4);
+    return (this._glT = new THREE.CanvasTexture(c));
+  },
+  makeGlare(h) {
+    if (!h.geometry) return [];
+    h.geometry.computeBoundingBox(); const b = h.geometry.boundingBox, sx = b.max.x - b.min.x, sy = b.max.y - b.min.y;
+    const mat = new THREE.SpriteMaterial({ map: this.glareTex(), color: 0xfff1d6, transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending, opacity: 0 });
+    const n = sx > 20 ? Math.round(sx / 10) : 1, out = [];
+    for (let i = 0; i < n; i++) {
+      const sp = new THREE.Sprite(mat); sp.renderOrder = 3;
+      sp.position.set(n > 1 ? b.min.x + (i + 0.5) * sx / n : (b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, b.max.z + 0.5);
+      const k = n > 1 ? 13 : Math.max(sx, sy) * 2.6; sp.scale.set(k, k, 1); sp.visible = false; h.add(sp); out.push(sp);
+    }
+    return out;
+  },
+  updateGlare() {
+    const K = this.Q ? this.Q.glare : 0;
+    for (const h of this.towerHeads || []) {
+      if (!h || !h.material) continue;
+      let gs = h._glare;
+      if (!gs) { if (!K) continue; gs = h._glare = this.makeGlare(h); }
+      const o = K * clamp((h.material.emissiveIntensity - 0.45) / 1.6, 0, 1) * 0.85;
+      for (const sp of gs) { sp.visible = o > 0.01; sp.material.opacity = o; }
+    }
   },
   resize() {
     const w = this.container.clientWidth || window.innerWidth, h = this.container.clientHeight || window.innerHeight;
@@ -12219,12 +12351,14 @@ const Gfx = {
   },
   buildField() {
     this.fieldMat = new THREE.MeshLambertMaterial({ color: 0xffffff });   // turf is fully matte: no sheen or glare off it at any time of day or under the lights
+    this.turfDetail(this.fieldMat, 1);
     const field = new THREE.Mesh(new THREE.PlaneGeometry(132 * YD, 66 * YD), this.fieldMat);
     field.rotation.x = -Math.PI / 2; field.receiveShadow = true;
     this.scene.add(field);
     this.field = field;
     this.buildWeatherGround();
     const apron = this.apron = new THREE.Mesh(new THREE.PlaneGeometry(260, 200), new THREE.MeshStandardMaterial({ color: lin(0x24491f), roughness: 1 }));
+    this.turfDetail(apron.material, 0.8);
     apron.rotation.x = -Math.PI / 2; apron.position.y = -0.02; apron.receiveShadow = true;
     this.scene.add(apron);
     // goalposts (kept so a crowd can tear one down: storm.js)
@@ -12676,13 +12810,33 @@ const Gfx = {
   },
 
   /* ---------------- ball ---------------- */
+  leatherTex() {
+    const W = 512, H = 256, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+    const bc = document.createElement('canvas'); bc.width = W; bc.height = H; const bx = bc.getContext('2d');
+    g.fillStyle = '#7b3b17'; g.fillRect(0, 0, W, H); bx.fillStyle = '#808080'; bx.fillRect(0, 0, W, H);
+    let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 26000; i++) { const x = rnd() * W, y = rnd() * H, v = rnd(); g.fillStyle = v > 0.5 ? 'rgba(140,72,36,0.1)' : 'rgba(45,16,5,0.1)'; g.fillRect(x, y, 1.2, 1.2); bx.fillStyle = 'rgba(255,255,255,0.35)'; bx.beginPath(); bx.arc(x, y, 0.85, 0, 7); bx.fill(); }
+    // panel seams (four, tip to tip) and the worn sheen toward the middle
+    for (let k = 0; k < 4; k++) { const x = (k + 0.5) * W / 4; g.fillStyle = 'rgba(25,8,2,0.8)'; g.fillRect(x - 1.5, 0, 3, H); bx.fillStyle = '#000'; bx.fillRect(x - 2.5, 0, 5, H); }
+    const sh = g.createLinearGradient(0, 0, 0, H); sh.addColorStop(0, 'rgba(0,0,0,0.25)'); sh.addColorStop(0.5, 'rgba(255,190,140,0.06)'); sh.addColorStop(1, 'rgba(0,0,0,0.25)'); g.fillStyle = sh; g.fillRect(0, 0, W, H);
+    const map = new THREE.CanvasTexture(c); map.encoding = THREE.sRGBEncoding; map.anisotropy = 4;
+    return { map, bump: new THREE.CanvasTexture(bc) };
+  },
   buildBall() {
     const g = new THREE.Group();
-    const leather = new THREE.MeshStandardMaterial({ color: lin(0x7a3a17), roughness: 0.5 });
-    const b = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), leather);
+    // pebbled leather with four panels whose seams run tip to tip, a stitched lace on top
+    const lt = this.leatherTex();
+    const leather = new THREE.MeshStandardMaterial({ color: 0xffffff, map: lt.map, bumpMap: lt.bump, bumpScale: 0.012, roughness: 0.58 });
+    const bg = new THREE.SphereGeometry(1, 28, 18); bg.rotateZ(Math.PI / 2);   // poles at the tips, so the panel seams meet there
+    const b = new THREE.Mesh(bg, leather);
     b.scale.set(BALL_A, BALL_B, BALL_B); b.castShadow = true;
-    const lace = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.012, 0.012), new THREE.MeshStandardMaterial({ color: 0xf6f6f0 }));
+    const laceM = new THREE.MeshStandardMaterial({ color: 0xf6f6f0, roughness: 0.55 });
+    const lace = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.012, 0.012), laceM);
     lace.position.set(0, BALL_B * 0.98, 0);
+    for (let i = 0; i < 8; i++) {
+      const x = -0.042 + i * 0.012, y = BALL_B * Math.sqrt(Math.max(0, 1 - (x / BALL_A) ** 2));
+      const cl = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.006, 0.034), laceM); cl.position.set(x, y + 0.002, 0); g.add(cl);
+    }
     const stripeM = new THREE.MeshStandardMaterial({ color: 0xf6f6f0, roughness: 0.6 });
     for (const s of [-1, 1]) { const st = new THREE.Mesh(new THREE.TorusGeometry(BALL_B * 0.83, 0.006, 6, 20), stripeM); st.rotation.y = Math.PI / 2; st.position.x = s * BALL_A * 0.55; g.add(st); }
     g.add(b, lace);
@@ -16358,8 +16512,61 @@ const Gear = {
       // powder-coated steel: satin colour over metal
       m = new THREE.MeshStandardMaterial({ color: c, roughness: finish === 'bar' ? 0.42 : 0.3, metalness: finish === 'bar' ? 0.35 : 0.75, envMap: E || null, envMapIntensity: 0.6 });
     } else m = new THREE.MeshStandardMaterial({ color: c, roughness: P.roughness, metalness: P.metalness });
+    if (finish === 'cloth' || finish === 'mesh') this.fabric(m, finish === 'mesh' ? 1 : 0);
     this.mats.set(key, m);
     return m;
+  },
+  /* uniform fabric, seen up close: a mesh knit on jerseys, a fine twill on pants and cloth, and soft folds and
+     creases across both. Measured in real size on each body part, so it never swims as players move, and it fades
+     out with distance (High and Ultra graphics only) */
+  fabTex() {
+    if (this._fabT) return this._fabT;
+    const N = 128, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d');
+    const img = g.createImageData(N, N), d = img.data;
+    let seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const folds = new Float32Array(N * N);
+    for (let k = 0; k < 9; k++) { const a = rnd() * Math.PI, fx = Math.cos(a), fy = Math.sin(a), fr = (1 + Math.floor(rnd() * 3)) * 2 * Math.PI / N, ph = rnd() * 6.28, amp = 0.4 + rnd() * 0.6;
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = Math.sin((Math.round(fx * 3) * x + Math.round(fy * 3) * y) * fr + ph); folds[y * N + x] += amp * (1 - Math.abs(v)) ** 3; } }
+    let mx = 0; for (const v of folds) mx = Math.max(mx, v);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = (y * N + x) * 4;
+      const hx = x % 4, hy = (y + (Math.floor(x / 4) % 2) * 2) % 4;                       // offset rows of little holes
+      d[i] = (hx === 0 || hx === 3) && (hy === 0 || hy === 3) ? 200 : hx > 0 && hx < 3 && hy > 0 && hy < 3 ? 70 : 140;
+      d[i + 1] = ((x + y) % 4 < 2 ? 138 : 118) + (rnd() - 0.5) * 34;                    // diagonal twill
+      d[i + 2] = 128 + (folds[y * N + x] / mx - 0.35) * 160;                             // folds
+      d[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    const t = this._fabT = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+    return t;
+  },
+  fabric(m, kind) {
+    const U = this.fabU || (this.fabU = { tex: { value: this.fabTex() }, k: { value: (typeof Gfx !== 'undefined' && Gfx.Q && Gfx.Q.det >= 2) ? 1 : 0 } });
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uFab = U.tex; sh.uniforms.uFabK = U.k; sh.uniforms.uFabKind = { value: kind };
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vFabP; varying vec3 vFabN;')
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          #ifdef USE_INSTANCING
+            mat4 fabM = modelMatrix * instanceMatrix;
+          #else
+            mat4 fabM = modelMatrix;
+          #endif
+          vFabP = position * vec3(length(fabM[0].xyz), length(fabM[1].xyz), length(fabM[2].xyz)); vFabN = normal;`);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D uFab; uniform float uFabK; uniform float uFabKind; varying vec3 vFabP; varying vec3 vFabN;')
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          if (uFabK > 0.0) {
+            vec3 bw = pow(abs(normalize(vFabN)), vec3(4.0)); bw /= (bw.x + bw.y + bw.z + 1e-4);
+            float sc = mix(16.0, 10.0, uFabKind);
+            vec3 kx = texture2D(uFab, vFabP.yz * sc).rgb, ky = texture2D(uFab, vFabP.xz * sc).rgb, kz = texture2D(uFab, vFabP.xy * sc).rgb;
+            vec3 kn = kx * bw.x + ky * bw.y + kz * bw.z;
+            float fs = 2.2;
+            float fold = texture2D(uFab, vFabP.yz * fs).b * bw.x + texture2D(uFab, vFabP.xz * fs).b * bw.y + texture2D(uFab, vFabP.xy * fs).b * bw.z;
+            float near = 1.0 - smoothstep(3.0, 16.0, length(vViewPosition));
+            float weave = mix(kn.g, kn.r, uFabKind) - 0.5;
+            diffuseColor.rgb *= 1.0 + uFabK * (weave * 0.24 * near + (fold - 0.5) * 0.3);
+          }`);
+    };
+    m.customProgramCacheKey = () => 'fab' + kind;
   },
   visorMat(kind) {
     const key = 'visor|' + kind;
@@ -33052,8 +33259,10 @@ const Onboard = {
         ${row('Quarter length', 'For Quick Match', seg('qLen', [[2, '2 min'], [3, '3 min'], [5, '5 min'], [8, '8 min']], S.qLen || 3))}
         ${row('Tackle battles', 'Mash to break free, or let them play out', seg('battles', [['on', 'Mash to win'], ['off', 'Automatic']], S.battles !== false ? 'on' : 'off'))}
         ${row('Jump balls', 'Contested catches', seg('jumpBalls', [['on', 'Mash to win'], ['off', 'Automatic']], S.jumpBalls !== false ? 'on' : 'off'))}
-        ${row('Celebration wheel', 'Pick your celebration after a score', seg('celebWheel', [['on', 'On'], ['off', 'Off']], S.celebWheel !== false ? 'on' : 'off'))}
-        ${row('Weather particles', 'Reduce on slower computers', seg('wxQ', [['1', 'Full'], ['0.45', 'Reduced']], String(S.wxQ || 1)))}</section>
+        ${row('Celebration wheel', 'Pick your celebration after a score', seg('celebWheel', [['on', 'On'], ['off', 'Off']], S.celebWheel !== false ? 'on' : 'off'))}</section>
+      <section class="ob-sec"><h3>Graphics</h3>
+        ${row('Graphics quality', `Recommended for this device: ${GFX_PRESETS[GfxQ.recommend()].name}`, seg('gfxQ', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra']], GfxQ.current().q))}
+        ${row('Weather particles', 'Reduce on slower computers', seg('wxQ', [['1', 'Full'], ['0.45', 'Reduced']], String(S.wxQ || GfxQ.current().wx)))}</section>
       <section class="ob-sec"><h3>Controls</h3>
         ${row('Touch controls', 'On-screen joystick and buttons', seg('touch', [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], S.touch || 'auto'))}
         ${row('Mash key', 'Tackle battles', seg('mashKey', [['Space', 'Space'], ['KeyV', 'V'], ['KeyB', 'B']], S.mashKey || 'Space'))}
@@ -33077,6 +33286,7 @@ const Onboard = {
       else if (['pgVoice', 'cutscenes', 'battles', 'jumpBalls', 'celebWheel'].includes(k)) S[k] = v === 'on';
       else if (k === 'qLen') S[k] = +v;
       else if (k === 'wxQ') { S.wxQ = +v; Gfx.precipScale = +v; }
+      else if (k === 'gfxQ') { GfxQ.setPreset(v); el.querySelectorAll('.ob-seg[data-set="wxQ"] button').forEach(x => x.classList.toggle('on', x.dataset.v === String(S.wxQ))); }
       else if (k === 'truckKey') { S.truckKey = v; if (S.jumpKey === v) S.jumpKey = 'KeyF'; }
       else S[k] = v;
       if (k === 'touch' && typeof TouchPad !== 'undefined') { TouchPad.on = TouchPad.available(); if (!TouchPad.on && TouchPad.el) TouchPad.el.hidden = true; }
@@ -33336,7 +33546,7 @@ const Game = {
     Gfx.setEnvironment('clear', true);
     this.hooks();
     this.applyKeys();
-    Gfx.precipScale = this.settings.wxQ || 1;
+    Gfx.precipScale = this.settings.wxQ || (Gfx.Q ? Gfx.Q.wx : 1);
     CelebWheel.init();
     UI.title();
     UI.gear();
@@ -33733,6 +33943,7 @@ const Game = {
       Gfx.setTimeOfDay(m.phase === 'over' ? 1 : p);
     }
     UI.update(rdt);
+    Gfx.updateGlare();
     Gfx.flushBatches();
     Gfx.renderer.render(Gfx.scene, Gfx.camera);
   },
@@ -35032,7 +35243,7 @@ const UI = {
     this.settingsOnly = !!asSettings;
     const seg = (id, opts, cur) => `<div class="seg" id="${id}">${opts.map(([v, l]) => `<button data-v="${v}" class="${v === cur ? 'on' : ''}">${l}</button>`).join('')}</div>`;
     const V = (k) => Math.round((G.settings[k] == null ? 1 : G.settings[k]) * 100);
-    const TABS = [['game', 'Gameplay'], ['cam', 'Camera'], ['audio', 'Audio'], ['keys', 'Keyboard'], ['pad', 'Controller'], ['road', 'Road to the League']];
+    const TABS = [['game', 'Gameplay'], ['cam', 'Camera'], ['gfx', 'Graphics'], ['audio', 'Audio'], ['keys', 'Keyboard'], ['pad', 'Controller'], ['road', 'Road to the League']];
     const tab = TABS.some(t => t[0] === this.setTab) ? this.setTab : 'game';
     const panes = {
       game: sgroup('Battles', srow('Tackle battles', seg('pBat', [['1', 'Mash to win'], ['0', 'Automatic']], G.settings.battles !== false ? '1' : '0'), 'Mash when you\'re wrapped up, or let the ratings decide')
@@ -35045,8 +35256,15 @@ const UI = {
           + srow('Debug view', seg('pDbg', [['1', 'On'], ['0', 'Off']], G.debug ? '1' : '0'))),
       cam: sgroup('Game camera', (Cam.career() ? srow('Road to the League', seg('pCamC', Cam.CAREER_CAMS, Cam.careerMode(G.settings.camCareer))) : '')
           + srow('On offense', seg('pCamO', Cam.list('off').map(k => [k, CAM_MODES[k].short]), G.settings.camOff))
-          + srow('On defense', seg('pCamD', Cam.list('def').map(k => [k, CAM_MODES[k].short]), G.settings.camDef)))
-        + sgroup('Display', srow('Weather particles', seg('pWxQ', [['1', 'Full'], ['0.45', 'Reduced']], String(G.settings.wxQ || 1)), 'Reduce if rain or snow slows the game down')),
+          + srow('On defense', seg('pCamD', Cam.list('def').map(k => [k, CAM_MODES[k].short]), G.settings.camDef))),
+      gfx: (() => { const Q = GfxQ.current(), rec = GFX_PRESETS[GfxQ.recommend()].name;
+        return sgroup('Quality', srow('Graphics preset', seg('pGfxQ', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra']].concat(Q.q === 'custom' ? [['custom', 'Custom']] : []), Q.q), `Recommended for this device: ${rec}`))
+          + sgroup('Fine-tune', srow('Resolution', seg('pGfxPr', [['1', 'Standard'], ['1.25', 'Sharp'], ['1.5', 'Sharper'], ['2', 'Max']], String(Q.pr)), 'Higher is crisper but slower; capped at your screen')
+            + srow('Shadows', seg('pGfxSh', [['1024', 'Standard'], ['2048', 'Soft'], ['4096', 'Ultra']], String(Q.sh)))
+            + srow('Turf & uniform detail', seg('pGfxDet', [['0', 'Off'], ['1', 'Turf'], ['2', 'Turf + fabric']], String(Q.det)), 'Grass blades and jersey fabric up close')
+            + srow('Stadium light glare', seg('pGfxGl', [['0', 'Off'], ['1', 'On']], Q.glare ? '1' : '0'), 'Halos round the lights at night')
+            + srow('Weather particles', seg('pWxQ', [['1', 'Full'], ['0.45', 'Reduced']], String(G.settings.wxQ || Q.wx)), 'Reduce if rain or snow slows the game down'))
+          + `<p class="snote">Anti-aliasing (smooth edges) follows the preset and takes effect the next time the game loads.</p>`; })(),
       audio: sgroup('', srow('Sound', seg('pSnd', [['1', 'On'], ['0', 'Off']], Sfx.muted ? '0' : '1')))
         + sgroup('Volume', [['volMaster', 'Master'], ['volMusic', 'In-game music', 'The band'], ['volMenu', 'Menu music'], ['volCrowd', 'Crowd'], ['volSfx', 'Sound effects'], ['volComm', 'Commentary']].map(([k, n, note]) => sslider(n, `min="0" max="100" step="1" data-vol="${k}"`, V(k), V(k), note)).join('')),
       keys: sgroup('Keys', srow('Mash key', seg('pMash', [['Space', 'Space'], ['KeyV', 'V'], ['KeyB', 'B']], G.settings.mashKey || 'Space'), 'Tackle battles')
@@ -35083,6 +35301,12 @@ const UI = {
     bind('pDbg', v => { G.debug = v === '1'; Gfx.dbg.visible = G.debug; $('dbg').hidden = !G.debug; });
     bind('pRep', v => G.autoReplay = v === '1');
     bind('pWxQ', v => { G.settings.wxQ = +v; G.saveSettings(); Gfx.precipScale = +v; Gfx.precipFor(); });
+    const redraw = () => { const t = this.setTab; this.togglePause(); this.togglePause(asSettings); this.setTab = t; };
+    bind('pGfxQ', v => { if (v === 'custom') return; GfxQ.setPreset(v); redraw(); });
+    bind('pGfxPr', v => { GfxQ.setOne('pr', v); redraw(); });
+    bind('pGfxSh', v => { GfxQ.setOne('sh', v); redraw(); });
+    bind('pGfxDet', v => { GfxQ.setOne('det', v); redraw(); });
+    bind('pGfxGl', v => { GfxQ.setOne('glare', v); redraw(); });
     bind('pSnd', v => Sfx.setMuted(v === '0'));
     bind('pBat', v => { G.settings.battles = v === '1'; G.saveSettings(); });
     bind('pTouch', v => { G.settings.touch = v; G.saveSettings(); TouchPad.on = TouchPad.available(); if (!TouchPad.on) TouchPad.el.hidden = true; });
